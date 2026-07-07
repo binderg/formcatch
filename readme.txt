@@ -1,0 +1,179 @@
+=== FormCatch ===
+Contributors: gstudios
+Requires at least: 5.8
+Tested up to: 6.7
+Requires PHP: 7.4
+Stable tag: 1.2.0
+License: GPLv2 or later
+
+A self-hosted form backend for WordPress. No shortcodes, no form builder —
+write your own HTML/PHP form, point its action at a generated endpoint,
+and FormCatch handles storage, search, spam filtering, and email
+notifications.
+
+== Quick start ==
+
+1. Activate the plugin.
+2. Go to FormCatch > Forms > Add New. Give it a name, save.
+3. Copy the generated endpoint URL shown on the edit screen.
+4. Set that URL as the `action` attribute of your `<form>`:
+
+   <form action="https://yoursite.com/wp-json/formcatch/v1/submit/{token}" method="post">
+       <input type="text" name="name">
+       <input type="email" name="email">
+       <textarea name="message"></textarea>
+       <input type="text" name="{honeypot_field}" style="display:none" tabindex="-1" autocomplete="off">
+       <button type="submit">Send</button>
+   </form>
+
+5. That's it — no further code required. FormCatch accepts whatever
+   fields you send (schema-less) and stores them as-is.
+
+Submitting the form normally (full page POST) redirects back to the
+referring page with `?submitted=1`, or to a custom Redirect URL you set
+per-form. Submitting via `fetch()`/AJAX with `Accept: application/json`
+gets a JSON response instead — same endpoint, no configuration needed
+either way.
+
+== Per-form settings ==
+
+Organized into tabs on the form edit screen:
+
+- General — form name, active/disabled status, save-to-database, redirect URL.
+- Email — one or more email rules, each with recipients, subject, body,
+  plain/HTML format, and an optional Reply-To field. Subject/body/recipients
+  support {{placeholders}} (see below). Set a rule's "Send to" to {{email}}
+  to turn it into an autoresponder back to the submitter.
+- Spam — honeypot field name, CAPTCHA (if configured globally), and whether
+  to notify on spam-flagged submissions.
+- Advanced — webhook URL(s).
+
+== Email placeholders ==
+
+Usable in an email rule's recipients, subject, and body:
+
+- {{field_name}} — any submitted field value (e.g. {{email}}, {{name}}).
+- {{form_name}} — the form's name.
+- {{submission_id}} — the stored submission ID.
+- {{all_fields}} — every submitted field formatted as a list.
+- {{files}} — download links for any files attached to the submission.
+
+Unknown placeholders are left visible (not blanked) so typos are obvious.
+
+== Webhooks ==
+
+Per form, POST each non-spam submission to one or more URLs (Slack, Zapier,
+etc.) as JSON. Optionally sign requests with an HMAC secret (Settings) — the
+signature is sent in the X-FormCatch-Signature header so receivers can verify
+authenticity. Every webhook attempt is recorded in the Logs screen with its
+HTTP status.
+
+== CAPTCHA ==
+
+Configure keys once in Settings (Cloudflare Turnstile, Google reCAPTCHA v2, or
+reCAPTCHA v3), then enable per form on its Spam tab. FormCatch generates the
+exact widget markup to paste into your form. reCAPTCHA v3 supports a per-form
+badge position (bottom-right / bottom-left / inline).
+
+== Logs ==
+
+Every submission received, email sent, and webhook fired is recorded with a
+status (success / error / skipped) and searchable context. Failed events raise
+a dismissible admin notice and a count badge on the Logs menu. Logs auto-prune
+after a configurable retention window (default 90 days).
+
+== CORS ==
+
+For cross-domain fetch()/AJAX submissions, add allowed origins in Settings
+(one per line, or * for any). Same-origin submissions always work.
+
+== REST API ==
+
+Read stored submissions programmatically.
+
+Endpoints:
+
+- GET /wp-json/formcatch/v1/submissions
+  Query params: form_id, status (new|read|spam), search, page (default 1),
+  per_page (default 20, max 100). Responses include X-WP-Total and
+  X-WP-TotalPages headers for pagination.
+
+- GET /wp-json/formcatch/v1/submissions/{id}
+  A single submission.
+
+Response shape (per submission):
+
+  {
+    "id": 12,
+    "form_id": 3,
+    "status": "new",
+    "data": { "name": "Ada", "email": "ada@example.com" },
+    "ip": "203.0.113.7",
+    "referrer": "https://example.com/contact",
+    "created_at": "2026-07-06 14:22:01"
+  }
+
+Authentication:
+
+There is no separate FormCatch API key. Access is gated by the same
+WordPress capability that manages the plugin (manage_options by default,
+filterable via `fc_manage_capability`), using WordPress's built-in REST
+authentication. Anonymous or under-privileged requests get HTTP 401.
+
+Two ways to authenticate:
+
+1. Cookie + nonce — for calls from an admin's own browser session. Send the
+   REST nonce in the X-WP-Nonce header (wp_create_nonce( 'wp_rest' )).
+   This is how in-dashboard JavaScript authenticates.
+
+2. Application Passwords — for external scripts/servers. In WordPress, go to
+   Users > Profile > Application Passwords, generate one for a user who has
+   the manage capability, then use HTTP Basic Auth:
+
+     curl -u "admin:xxxx xxxx xxxx xxxx" \
+       "https://yoursite.com/wp-json/formcatch/v1/submissions?form_id=3"
+
+The API is read-only. Creating submissions is done through the public submit
+endpoint (/submit/{token}); there is no write API for editing stored rows.
+
+== Developer hooks ==
+
+- `fc_manage_capability` (filter) — change which capability is required to manage FormCatch (default `manage_options`).
+- `fc_after_submission_saved` (action) — `( $form, $payload, $submission_id, $is_spam )`, fires after every submission is processed.
+- `fc_email_subject` / `fc_email_body` / `fc_email_headers` / `fc_email_tokens` (filters) — customize the notification email.
+- `fc_webhook_payload` / `fc_webhook_headers` (filters) — customize the webhook request.
+- `fc_redirect_url` (filter) — override the redirect target on non-JSON submissions.
+
+== Notes ==
+
+- Rate limiting is a simple per-IP-per-form transient counter (default 10/min), configurable in Settings.
+- A max-fields-per-submission cap (default 100) rejects oversized payloads.
+- Deactivating the plugin never touches your data. Deleting it only removes data if you've explicitly opted in under Settings.
+- Search on the Submissions and Logs screens matches stored values with LIKE (not a full-text index) — fine at the volumes this plugin targets, but not built for tens of thousands of rows.
+
+== Changelog ==
+
+= 1.2.0 =
+* File uploads: opt-in per form, stored in a protected directory and served only through signed, expiring links or an authenticated proxy (works on Apache and Nginx). Configurable max size (capped by the server), allowed types (executable/script types always blocked), and max files per submission.
+* Email: {{files}} placeholder renders download links for a submission's attachments; per-form "From" name and address.
+* Spam: hCaptcha added alongside Turnstile and reCAPTCHA v2/v3.
+* Attachments surfaced in the submission view, CSV export, and REST API.
+
+= 1.1.0 =
+* Email: multiple composable email rules per form, each with its own recipients, subject, body, and plain/HTML format.
+* Email: {{placeholder}} templating in recipients, subject, and body ({{field}}, {{form_name}}, {{submission_id}}, {{all_fields}}).
+* Email: autoresponders — set a rule's recipient to {{email}} to reply to the submitter.
+* Email: optional per-rule Reply-To field.
+* Webhooks: multiple URLs per form, delivery logging, and optional HMAC request signing.
+* CAPTCHA: Cloudflare Turnstile, hCaptcha, and Google reCAPTCHA v2/v3, configured globally and enabled per form, with generated widget markup and per-form v3 badge position.
+* Spam: disposable/temporary email blocking using the community disposable-email-domains list (auto-refreshed on plugin updates, manual refresh available), and per-form allowed-domains restriction (Origin/Referer allowlist).
+* Data: configurable submission retention with automatic pruning (off by default).
+* Logs: new event log for submissions, emails, and webhooks with search, filters, admin error notices, and automatic pruning.
+* Submissions: CSV export (respects current filters) and a resend-notifications action.
+* REST: read API for listing and fetching submissions.
+* Forms: quick enable/disable toggle from the forms list, and endpoint token rotation.
+* Security/robustness: CORS allowed-origins control, max-fields payload cap.
+* Admin: form edit screen reorganized into General / Email / Spam / Advanced tabs.
+
+= 1.0.0 =
+* Initial release.
