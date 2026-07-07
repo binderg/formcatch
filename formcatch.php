@@ -3,7 +3,7 @@
  * Plugin Name:       FormCatch
  * Plugin URI:        https://gstudios.dev/formcatch
  * Description:       A self-hosted form backend. Point any plain HTML/PHP form at a generated endpoint and FormCatch stores, searches, and (optionally) emails every submission — no shortcodes, no form builder.
- * Version:           1.2.0
+ * Version:           1.2.1
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            GStudios
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FC_VERSION', '1.2.0' );
+define( 'FC_VERSION', '1.2.1' );
 define( 'FC_DB_VERSION', '1.2.0' );
 define( 'FC_PLUGIN_FILE', __FILE__ );
 define( 'FC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );

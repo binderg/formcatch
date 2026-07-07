@@ -3,7 +3,7 @@ Contributors: gstudios
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.2.0
+Stable tag: 1.2.1
 License: GPLv2 or later
 
 A self-hosted form backend for WordPress. No shortcodes, no form builder —
@@ -152,6 +152,10 @@ endpoint (/submit/{token}); there is no write API for editing stored rows.
 - Search on the Submissions and Logs screens matches stored values with LIKE (not a full-text index) — fine at the volumes this plugin targets, but not built for tens of thousands of rows.
 
 == Changelog ==
+
+= 1.2.1 =
+* Fix: form-edit tab panels no longer shake/reflow the page on click (panels now stack via CSS grid instead of display toggle; tab click updates the URL hash via history.replaceState instead of location.hash, which was triggering an unwanted scroll-to-anchor).
+* Fix: the Spam tab's CAPTCHA-wired example form now only shows when "Require CAPTCHA" is actually checked for that form, instead of whenever CAPTCHA is configured globally (was previously out of sync with the form's real behavior).
 
 = 1.2.0 =
 * File uploads: opt-in per form, stored in a protected directory and served only through signed, expiring links or an authenticated proxy (works on Apache and Nginx). Configurable max size (capped by the server), allowed types (executable/script types always blocked), and max files per submission.
