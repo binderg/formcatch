@@ -1,9 +1,9 @@
 <?php
 /**
  * Plugin Name:       FormCatch
- * Plugin URI:        https://gstudios.dev/formcatch
+ * Plugin URI:        https://formcatch.dev/
  * Description:       A self-hosted form backend. Point any plain HTML/PHP form at a generated endpoint and FormCatch stores, searches, and (optionally) emails every submission — no shortcodes, no form builder.
- * Version:           1.2.1
+ * Version:           1.3.0
  * Requires at least: 5.8
  * Requires PHP:      7.4
  * Author:            GStudios
@@ -18,7 +18,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-define( 'FC_VERSION', '1.2.1' );
+define( 'FC_VERSION', '1.3.0' );
 define( 'FC_DB_VERSION', '1.2.0' );
 define( 'FC_PLUGIN_FILE', __FILE__ );
 define( 'FC_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
@@ -30,6 +30,7 @@ define( 'FC_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
  */
 require_once FC_PLUGIN_DIR . 'includes/class-fc-helpers.php';
 require_once FC_PLUGIN_DIR . 'includes/class-fc-db.php';
+require_once FC_PLUGIN_DIR . 'includes/class-fc-forms.php';
 require_once FC_PLUGIN_DIR . 'includes/class-fc-activator.php';
 require_once FC_PLUGIN_DIR . 'includes/class-fc-logger.php';
 require_once FC_PLUGIN_DIR . 'includes/class-fc-uploads.php';

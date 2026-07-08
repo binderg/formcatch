@@ -3,7 +3,7 @@ Contributors: gstudios
 Requires at least: 5.8
 Tested up to: 6.7
 Requires PHP: 7.4
-Stable tag: 1.2.1
+Stable tag: 1.3.0
 License: GPLv2 or later
 
 A self-hosted form backend for WordPress. No shortcodes, no form builder —
@@ -152,6 +152,13 @@ endpoint (/submit/{token}); there is no write API for editing stored rows.
 - Search on the Submissions and Logs screens matches stored values with LIKE (not a full-text index) — fine at the volumes this plugin targets, but not built for tens of thousands of rows.
 
 == Changelog ==
+
+= 1.3.0 =
+* Forms API: create, read, update (PUT/PATCH), and delete forms over REST — every per-form setting, including the emails array, is scriptable. Create returns the ready-to-use endpoint URL and a copy-paste HTML example.
+* Forms API: GET /forms/schema returns a machine-readable description of the whole form config (types, defaults, enums) so an AI/agent can build valid forms without reading docs.
+* JSON import/export: export a form's portable config (REST or the Forms screen) and import one or many forms (REST /forms/import or paste-JSON on the Forms screen). Same validation everywhere.
+* Validation: requiring CAPTCHA on a form now fails fast (422 via API, warning in the admin) when no provider is configured, instead of silently doing nothing.
+* Internal: form-settings validation/sanitization centralized so the admin UI, REST API, and import all behave identically. Endpoint tokens are now checked for uniqueness on creation and rotation.
 
 = 1.2.1 =
 * Fix: form-edit tab panels no longer shake/reflow the page on click (panels now stack via CSS grid instead of display toggle; tab click updates the URL hash via history.replaceState instead of location.hash, which was triggering an unwanted scroll-to-anchor).

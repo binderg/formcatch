@@ -74,6 +74,210 @@ class FC_REST_Controller {
 				),
 			)
 		);
+
+		/* ---- Forms API (AI-native: create/read/update/delete + schema) ---- */
+
+		register_rest_route(
+			self::NAMESPACE_SLUG,
+			'/forms',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'handle_list_forms' ),
+					'permission_callback' => array( $this, 'read_permission' ),
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'handle_create_form' ),
+					'permission_callback' => array( $this, 'read_permission' ),
+				),
+			)
+		);
+
+		// Self-describing schema — declared before the {id} route so "schema"
+		// isn't captured as an id.
+		register_rest_route(
+			self::NAMESPACE_SLUG,
+			'/forms/schema',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_forms_schema' ),
+				'permission_callback' => array( $this, 'read_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_SLUG,
+			'/forms/import',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_import_forms' ),
+				'permission_callback' => array( $this, 'read_permission' ),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_SLUG,
+			'/forms/(?P<id>\d+)',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'handle_get_form' ),
+					'permission_callback' => array( $this, 'read_permission' ),
+				),
+				array(
+					'methods'             => array( 'PUT', 'PATCH' ),
+					'callback'            => array( $this, 'handle_update_form' ),
+					'permission_callback' => array( $this, 'read_permission' ),
+				),
+				array(
+					'methods'             => 'DELETE',
+					'callback'            => array( $this, 'handle_delete_form' ),
+					'permission_callback' => array( $this, 'read_permission' ),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE_SLUG,
+			'/forms/(?P<id>\d+)/export',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_export_form' ),
+				'permission_callback' => array( $this, 'read_permission' ),
+			)
+		);
+	}
+
+	/* -----------------------------------------------------------------
+	 * Forms API handlers
+	 * --------------------------------------------------------------- */
+
+	public function handle_forms_schema() {
+		return new WP_REST_Response( FC_Forms::schema(), 200 );
+	}
+
+	public function handle_list_forms() {
+		global $wpdb;
+		$table = FC_DB::forms_table();
+		$rows  = $wpdb->get_results( "SELECT * FROM {$table} ORDER BY created_at DESC" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		$out = array_map( array( 'FC_Forms', 'to_api_array' ), $rows );
+		return new WP_REST_Response( $out, 200 );
+	}
+
+	public function handle_get_form( WP_REST_Request $request ) {
+		$form = FC_Forms::get( (int) $request->get_param( 'id' ) );
+		if ( ! $form ) {
+			return new WP_Error( 'fc_not_found', __( 'Form not found.', 'formcatch' ), array( 'status' => 404 ) );
+		}
+		return new WP_REST_Response( FC_Forms::to_api_array( $form ), 200 );
+	}
+
+	public function handle_create_form( WP_REST_Request $request ) {
+		$body     = (array) $request->get_json_params();
+		$name     = isset( $body['name'] ) ? sanitize_text_field( $body['name'] ) : '';
+		$status   = isset( $body['status'] ) ? sanitize_key( $body['status'] ) : 'active';
+		$in       = isset( $body['settings'] ) && is_array( $body['settings'] ) ? $body['settings'] : array();
+		$settings = FC_Forms::sanitize_settings( $in, null, false );
+
+		$valid = FC_Forms::validate_settings( $settings );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+
+		$id   = FC_Forms::create( $name, $settings, $status );
+		$form = FC_Forms::get( $id );
+
+		return new WP_REST_Response( FC_Forms::to_api_array( $form ), 201 );
+	}
+
+	public function handle_update_form( WP_REST_Request $request ) {
+		$id       = (int) $request->get_param( 'id' );
+		$existing = FC_Forms::get( $id );
+		if ( ! $existing ) {
+			return new WP_Error( 'fc_not_found', __( 'Form not found.', 'formcatch' ), array( 'status' => 404 ) );
+		}
+
+		$body = (array) $request->get_json_params();
+
+		// PATCH merges; PUT replaces. Absent keys keep existing on PATCH.
+		$partial = ( 'PATCH' === $request->get_method() );
+
+		$name   = array_key_exists( 'name', $body ) ? sanitize_text_field( $body['name'] ) : $existing->name;
+		$status = array_key_exists( 'status', $body ) ? sanitize_key( $body['status'] ) : $existing->status;
+		$in     = isset( $body['settings'] ) && is_array( $body['settings'] ) ? $body['settings'] : array();
+
+		$settings = FC_Forms::sanitize_settings( $in, $existing->settings_arr, $partial );
+
+		$valid = FC_Forms::validate_settings( $settings );
+		if ( is_wp_error( $valid ) ) {
+			return $valid;
+		}
+
+		FC_Forms::update( $id, $name, $settings, $status );
+		return new WP_REST_Response( FC_Forms::to_api_array( FC_Forms::get( $id ) ), 200 );
+	}
+
+	public function handle_delete_form( WP_REST_Request $request ) {
+		$id = (int) $request->get_param( 'id' );
+		if ( ! FC_Forms::get( $id ) ) {
+			return new WP_Error( 'fc_not_found', __( 'Form not found.', 'formcatch' ), array( 'status' => 404 ) );
+		}
+		FC_Forms::delete( $id );
+		return new WP_REST_Response( array( 'deleted' => true, 'id' => $id ), 200 );
+	}
+
+	public function handle_export_form( WP_REST_Request $request ) {
+		$form = FC_Forms::get( (int) $request->get_param( 'id' ) );
+		if ( ! $form ) {
+			return new WP_Error( 'fc_not_found', __( 'Form not found.', 'formcatch' ), array( 'status' => 404 ) );
+		}
+		return new WP_REST_Response( FC_Forms::to_export_array( $form ), 200 );
+	}
+
+	/**
+	 * Import one form or an array of forms from portable JSON. Each is
+	 * validated independently; the response reports per-item results.
+	 */
+	public function handle_import_forms( WP_REST_Request $request ) {
+		$body = $request->get_json_params();
+
+		// Accept a single form object or a list.
+		$items = ( isset( $body['name'] ) || isset( $body['settings'] ) ) ? array( $body ) : (array) $body;
+
+		$created = array();
+		$errors  = array();
+
+		foreach ( $items as $i => $item ) {
+			if ( ! is_array( $item ) ) {
+				$errors[] = array( 'index' => $i, 'error' => 'not an object' );
+				continue;
+			}
+
+			$name     = isset( $item['name'] ) ? sanitize_text_field( $item['name'] ) : '';
+			$status   = isset( $item['status'] ) ? sanitize_key( $item['status'] ) : 'active';
+			$in       = isset( $item['settings'] ) && is_array( $item['settings'] ) ? $item['settings'] : array();
+			$settings = FC_Forms::sanitize_settings( $in, null, false );
+
+			$valid = FC_Forms::validate_settings( $settings );
+			if ( is_wp_error( $valid ) ) {
+				$errors[] = array( 'index' => $i, 'error' => $valid->get_error_message(), 'fields' => $valid->get_error_data()['errors'] );
+				continue;
+			}
+
+			$id        = FC_Forms::create( $name, $settings, $status );
+			$created[] = FC_Forms::to_api_array( FC_Forms::get( $id ) );
+		}
+
+		$status_code = empty( $created ) && ! empty( $errors ) ? 422 : 200;
+		return new WP_REST_Response(
+			array(
+				'created' => $created,
+				'errors'  => $errors,
+			),
+			$status_code
+		);
 	}
 
 	/**

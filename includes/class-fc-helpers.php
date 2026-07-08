@@ -28,6 +28,30 @@ class FC_Helpers {
 	}
 
 	/**
+	 * Generate a token guaranteed not to already exist in the forms table.
+	 * A 24-char token collision is astronomically unlikely, but with
+	 * programmatic/bulk creation we check anyway; the table's UNIQUE key on
+	 * token is the hard backstop against a concurrent race.
+	 *
+	 * @return string
+	 */
+	public static function generate_unique_token() {
+		global $wpdb;
+		$table = FC_DB::forms_table();
+
+		for ( $i = 0; $i < 5; $i++ ) {
+			$token  = self::generate_token();
+			$exists = $wpdb->get_var( $wpdb->prepare( "SELECT 1 FROM {$table} WHERE token = %s LIMIT 1", $token ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			if ( ! $exists ) {
+				return $token;
+			}
+		}
+
+		// Extremely improbable fallback: widen the token.
+		return substr( wp_generate_password( 40, false, false ), 0, 32 );
+	}
+
+	/**
 	 * Generate a honeypot field name. Kept configurable per-form so a
 	 * scraped/shared theme doesn't make every FormCatch site guessable
 	 * with the same field name.

@@ -22,6 +22,8 @@ class FC_Admin {
 		add_action( 'admin_post_fc_delete_form', array( $this, 'handle_delete_form' ) );
 		add_action( 'admin_post_fc_toggle_form_status', array( $this, 'handle_toggle_form_status' ) );
 		add_action( 'admin_post_fc_rotate_token', array( $this, 'handle_rotate_token' ) );
+		add_action( 'admin_post_fc_export_form', array( $this, 'handle_export_form' ) );
+		add_action( 'admin_post_fc_import_forms', array( $this, 'handle_import_forms' ) );
 		add_action( 'admin_post_fc_submission_action', array( $this, 'handle_submission_action' ) );
 		add_action( 'admin_post_fc_resend_notifications', array( $this, 'handle_resend_notifications' ) );
 		add_action( 'admin_post_fc_export_csv', array( $this, 'handle_export_csv' ) );
@@ -202,74 +204,31 @@ class FC_Admin {
 		}
 		check_admin_referer( 'fc_save_form' );
 
-		global $wpdb;
-		$table = FC_DB::forms_table();
-
 		$id   = isset( $_POST['form_id'] ) ? absint( $_POST['form_id'] ) : 0;
 		$name = isset( $_POST['name'] ) ? sanitize_text_field( wp_unslash( $_POST['name'] ) ) : '';
 
-		if ( '' === $name ) {
-			$name = __( 'Untitled form', 'formcatch' );
+		$existing = $id ? FC_Forms::get( $id ) : null;
+		if ( $id && ! $existing ) {
+			wp_die( esc_html__( 'Form not found.', 'formcatch' ) );
 		}
 
-		$settings = array(
-			'save_to_db'     => ! empty( $_POST['save_to_db'] ),
-			'notify_email'   => ! empty( $_POST['notify_email'] ),
-			'emails'         => $this->sanitize_emails( isset( $_POST['emails'] ) ? wp_unslash( $_POST['emails'] ) : array() ),
-			'email_from_name'    => isset( $_POST['email_from_name'] ) ? sanitize_text_field( wp_unslash( $_POST['email_from_name'] ) ) : '',
-			'email_from_address' => isset( $_POST['email_from_address'] ) ? sanitize_email( wp_unslash( $_POST['email_from_address'] ) ) : '',
-			'redirect_url'   => isset( $_POST['redirect_url'] ) ? esc_url_raw( wp_unslash( $_POST['redirect_url'] ) ) : '',
-			'honeypot_field' => isset( $_POST['honeypot_field'] ) ? sanitize_key( wp_unslash( $_POST['honeypot_field'] ) ) : '',
-			'webhook_url'    => isset( $_POST['webhook_url'] ) ? $this->sanitize_webhook_urls( wp_unslash( $_POST['webhook_url'] ) ) : '',
-			'notify_on_spam' => ! empty( $_POST['notify_on_spam'] ),
-			'require_captcha' => ! empty( $_POST['require_captcha'] ),
-			'captcha_v3_badge' => isset( $_POST['captcha_v3_badge'] ) ? FC_Captcha::normalize_badge( sanitize_key( wp_unslash( $_POST['captcha_v3_badge'] ) ) ) : 'bottomright',
-			'allowed_domains' => isset( $_POST['allowed_domains'] ) ? $this->sanitize_domains( wp_unslash( $_POST['allowed_domains'] ) ) : '',
-			'allow_uploads'   => ! empty( $_POST['allow_uploads'] ),
-		);
-
-		$status = ! empty( $_POST['status'] ) ? 'active' : 'disabled';
+		// Full unslashed POST → shared sanitizer (same path as the REST API).
+		$input    = wp_unslash( $_POST );
+		$settings = FC_Forms::sanitize_settings( $input, $existing ? $existing->settings_arr : null, false );
+		$status   = ! empty( $_POST['status'] ) ? 'active' : 'disabled';
 
 		if ( $id ) {
-			$existing = $this->get_form( $id );
-			if ( ! $existing ) {
-				wp_die( esc_html__( 'Form not found.', 'formcatch' ) );
-			}
-			if ( empty( $settings['honeypot_field'] ) ) {
-				$settings['honeypot_field'] = $existing->settings_arr['honeypot_field'];
-			}
-			$wpdb->update(
-				$table,
-				array(
-					'name'       => $name,
-					'settings'   => wp_json_encode( $settings ),
-					'status'     => $status,
-					'updated_at' => current_time( 'mysql' ),
-				),
-				array( 'id' => $id ),
-				array( '%s', '%s', '%s', '%s' ),
-				array( '%d' )
-			);
+			FC_Forms::update( $id, $name, $settings, $status );
 		} else {
-			if ( empty( $settings['honeypot_field'] ) ) {
-				$settings['honeypot_field'] = FC_Helpers::generate_honeypot_field();
-			}
-			$wpdb->insert(
-				$table,
-				array(
-					'name'       => $name,
-					'token'      => FC_Helpers::generate_token(),
-					'settings'   => wp_json_encode( $settings ),
-					'status'     => $status,
-					'created_at' => current_time( 'mysql' ),
-					'updated_at' => current_time( 'mysql' ),
-				),
-				array( '%s', '%s', '%s', '%s', '%s', '%s' )
-			);
-			$id = (int) $wpdb->insert_id;
+			$id = FC_Forms::create( $name, $settings, $status );
 		}
 
-		wp_safe_redirect( admin_url( 'admin.php?page=formcatch-forms&action=edit&form_id=' . $id . '&saved=1' ) );
+		// Requiring CAPTCHA without global keys is allowed to save from the UI
+		// (so you can configure it in either order), but flag it so it's not a
+		// silent no-op.
+		$warn = ( ! empty( $settings['require_captcha'] ) && ! FC_Captcha::is_configured() ) ? '&captcha_unconfigured=1' : '';
+
+		wp_safe_redirect( admin_url( 'admin.php?page=formcatch-forms&action=edit&form_id=' . $id . '&saved=1' . $warn ) );
 		exit;
 	}
 
@@ -280,46 +239,6 @@ class FC_Admin {
 	 * @param string $raw
 	 * @return string
 	 */
-	/**
-	 * Sanitize the repeatable emails[] POST array into a clean list of
-	 * to/subject/body/format rules. Blank rows (no recipient) are dropped.
-	 *
-	 * @param array $raw
-	 * @return array
-	 */
-	private function sanitize_emails( $raw ) {
-		if ( ! is_array( $raw ) ) {
-			return array();
-		}
-
-		$emails = array();
-		foreach ( $raw as $row ) {
-			if ( ! is_array( $row ) ) {
-				continue;
-			}
-
-			$to = isset( $row['to'] ) ? sanitize_text_field( $row['to'] ) : '';
-			if ( '' === trim( $to ) ) {
-				continue; // Skip empty rows.
-			}
-
-			$format = ( isset( $row['format'] ) && 'html' === $row['format'] ) ? 'html' : 'plain';
-			$body   = isset( $row['body'] ) ? $row['body'] : '';
-			// Allow safe HTML for html format; strip tags for plain.
-			$body   = 'html' === $format ? wp_kses_post( $body ) : sanitize_textarea_field( $body );
-
-			$emails[] = array(
-				'to'             => $to,
-				'subject'        => isset( $row['subject'] ) ? sanitize_text_field( $row['subject'] ) : '',
-				'body'           => $body,
-				'format'         => $format,
-				'reply_to_field' => isset( $row['reply_to_field'] ) ? sanitize_text_field( $row['reply_to_field'] ) : '',
-			);
-		}
-
-		return $emails;
-	}
-
 	/**
 	 * Clean the CORS origins textarea into a newline-separated list. Keeps
 	 * "*" as-is; otherwise validates each as a URL origin.
@@ -350,40 +269,6 @@ class FC_Admin {
 		}
 
 		return implode( "\n", array_unique( $clean ) );
-	}
-
-	/**
-	 * Clean a textarea of allowed submission domains into a newline list of
-	 * bare hostnames (one per line). Accepts full URLs or hostnames; a leading
-	 * "www." is kept as typed (matching is host-suffix aware at check time).
-	 *
-	 * @param string $raw
-	 * @return string
-	 */
-	private function sanitize_domains( $raw ) {
-		$raw   = str_replace( ',', "\n", (string) $raw );
-		$lines = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
-
-		$hosts = array();
-		foreach ( $lines as $line ) {
-			// Allow entries with or without a scheme.
-			$host = wp_parse_url( false !== strpos( $line, '//' ) ? $line : 'https://' . $line, PHP_URL_HOST );
-			$host = $host ? strtolower( $host ) : strtolower( preg_replace( '#^www\.#', '', $line ) );
-			$host = sanitize_text_field( $host );
-			if ( $host ) {
-				$hosts[] = $host;
-			}
-		}
-
-		return implode( "\n", array_unique( $hosts ) );
-	}
-
-	private function sanitize_webhook_urls( $raw ) {
-		$raw  = str_replace( ',', "\n", (string) $raw );
-		$urls = array_filter( array_map( 'trim', explode( "\n", $raw ) ) );
-		$urls = array_filter( array_map( 'esc_url_raw', $urls ) );
-
-		return implode( "\n", $urls );
 	}
 
 	/**
@@ -438,7 +323,7 @@ class FC_Admin {
 			$wpdb->update(
 				FC_DB::forms_table(),
 				array(
-					'token'      => FC_Helpers::generate_token(),
+					'token'      => FC_Helpers::generate_unique_token(),
 					'updated_at' => current_time( 'mysql' ),
 				),
 				array( 'id' => $id ),
@@ -448,6 +333,75 @@ class FC_Admin {
 		}
 
 		wp_safe_redirect( admin_url( 'admin.php?page=formcatch-forms&action=edit&form_id=' . $id . '&saved=1' ) );
+		exit;
+	}
+
+	/**
+	 * Download a single form's portable JSON (config only).
+	 */
+	public function handle_export_form() {
+		if ( ! current_user_can( FC_Helpers::capability() ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'formcatch' ) );
+		}
+		check_admin_referer( 'fc_export_form' );
+
+		$id   = isset( $_GET['form_id'] ) ? absint( $_GET['form_id'] ) : 0;
+		$form = $id ? FC_Forms::get( $id ) : null;
+		if ( ! $form ) {
+			wp_die( esc_html__( 'Form not found.', 'formcatch' ) );
+		}
+
+		$slug     = sanitize_title( $form->name ? $form->name : 'form' );
+		$filename = 'formcatch-' . $slug . '-' . $id . '.json';
+
+		nocache_headers();
+		header( 'Content-Type: application/json; charset=utf-8' );
+		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
+
+		echo wp_json_encode( FC_Forms::to_export_array( $form ), JSON_PRETTY_PRINT ); // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped
+		exit;
+	}
+
+	/**
+	 * Import forms from pasted JSON (single object or array). Uses the same
+	 * shared validation as the REST API.
+	 */
+	public function handle_import_forms() {
+		if ( ! current_user_can( FC_Helpers::capability() ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'formcatch' ) );
+		}
+		check_admin_referer( 'fc_import_forms' );
+
+		$raw    = isset( $_POST['fc_import_json'] ) ? wp_unslash( $_POST['fc_import_json'] ) : ''; // phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+		$parsed = json_decode( $raw, true );
+
+		if ( null === $parsed || ! is_array( $parsed ) ) {
+			wp_safe_redirect( admin_url( 'admin.php?page=formcatch-forms&import_error=1' ) );
+			exit;
+		}
+
+		$items = ( isset( $parsed['name'] ) || isset( $parsed['settings'] ) ) ? array( $parsed ) : $parsed;
+
+		$count = 0;
+		foreach ( $items as $item ) {
+			if ( ! is_array( $item ) ) {
+				continue;
+			}
+			$name     = isset( $item['name'] ) ? sanitize_text_field( $item['name'] ) : '';
+			$status   = isset( $item['status'] ) ? sanitize_key( $item['status'] ) : 'active';
+			$in       = isset( $item['settings'] ) && is_array( $item['settings'] ) ? $item['settings'] : array();
+			$settings = FC_Forms::sanitize_settings( $in, null, false );
+
+			if ( is_wp_error( FC_Forms::validate_settings( $settings ) ) ) {
+				continue; // Skip invalid; keep importing the rest.
+			}
+
+			FC_Forms::create( $name, $settings, $status );
+			$count++;
+		}
+
+		$arg = $count > 0 ? 'imported=' . $count : 'import_error=1';
+		wp_safe_redirect( admin_url( 'admin.php?page=formcatch-forms&' . $arg ) );
 		exit;
 	}
 

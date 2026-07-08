@@ -57,8 +57,14 @@ class FC_Forms_List_Table extends WP_List_Table {
 			'fc_rotate_token'
 		);
 
+		$export_url = wp_nonce_url(
+			admin_url( 'admin-post.php?action=fc_export_form&form_id=' . $item->id ),
+			'fc_export_form'
+		);
+
 		$actions = array(
 			'edit'   => sprintf( '<a href="%s">%s</a>', esc_url( $edit_url ), esc_html__( 'Edit', 'formcatch' ) ),
+			'export' => sprintf( '<a href="%s">%s</a>', esc_url( $export_url ), esc_html__( 'Export JSON', 'formcatch' ) ),
 			'toggle' => sprintf(
 				'<a href="%s">%s</a>',
 				esc_url( $toggle_url ),

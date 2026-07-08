@@ -16,6 +16,20 @@ $token    = $is_new ? '' : $form->token;
 		<div class="notice notice-success is-dismissible"><p><?php esc_html_e( 'Form saved.', 'formcatch' ); ?></p></div>
 	<?php endif; ?>
 
+	<?php if ( ! empty( $_GET['captcha_unconfigured'] ) ) : ?>
+		<div class="notice notice-warning is-dismissible">
+			<p>
+				<?php
+				printf(
+					/* translators: %s: settings link */
+					esc_html__( 'This form requires CAPTCHA, but no provider is configured yet, so it will not be enforced. Add keys in %s.', 'formcatch' ),
+					'<a href="' . esc_url( admin_url( 'admin.php?page=formcatch-settings' ) ) . '">' . esc_html__( 'Settings', 'formcatch' ) . '</a>'
+				);
+				?>
+			</p>
+		</div>
+	<?php endif; ?>
+
 	<?php if ( ! $is_new ) : ?>
 		<div class="fc-endpoint-box">
 			<h2><?php esc_html_e( 'Your submit endpoint', 'formcatch' ); ?></h2>
