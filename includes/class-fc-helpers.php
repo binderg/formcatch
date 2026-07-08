@@ -31,10 +31,10 @@ class FC_Helpers {
 	 * @return bool
 	 */
 	public static function can_use( $feature = '' ) {
-		if ( ! function_exists( 'fc_fs' ) ) {
+		if ( ! function_exists( 'for_fs' ) ) {
 			return false;
 		}
-		$fs = fc_fs();
+		$fs = for_fs();
 		if ( ! $fs ) {
 			return false;
 		}
@@ -57,8 +57,8 @@ class FC_Helpers {
 	 * @return string
 	 */
 	public static function upgrade_url() {
-		if ( function_exists( 'fc_fs' ) && fc_fs() ) {
-			return fc_fs()->get_upgrade_url();
+		if ( function_exists( 'for_fs' ) && for_fs() ) {
+			return for_fs()->get_upgrade_url();
 		}
 		return 'https://formcatch.dev/pricing/';
 	}

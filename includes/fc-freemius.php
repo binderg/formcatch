@@ -3,77 +3,70 @@
  * Freemius SDK bootstrap.
  *
  * Registers FormCatch with Freemius so a paid license unlocks the Pro
- * features (CAPTCHA, file uploads, webhooks, and the REST/Forms API).
- * The free build and the Pro build ship the same code; gating is done at
- * runtime via FC_Helpers::can_use() / fc_fs()->can_use_premium_code().
+ * features (CAPTCHA, file uploads, webhooks, and the REST/Forms API). The free
+ * build and the Pro build ship the same code; gating is done at runtime via
+ * FC_Helpers::can_use() / for_fs()->can_use_premium_code().
  *
- * TO FINISH SETUP:
- *   1. Create the plugin in your Freemius dashboard (Plugins > add plugin).
- *   2. Freemius will hand you an `id`, `public_key`, and a downloadable copy
- *      of the plugin with the SDK bundled at vendor/freemius/. Drop that
- *      vendor/freemius/ folder in alongside this plugin (or run
- *      `composer require freemius/wordpress-sdk`).
- *   3. Paste the id + public_key into the placeholders below.
- *
- * Until those are filled in (or the SDK is missing) this file no-ops and the
- * whole plugin behaves as the free tier — nothing fatals.
+ * Local testing: add these to the site's wp-config.php (NOT here — the secret
+ * key must never be committed or shipped):
+ *   define( 'WP_FS__DEV_MODE', true );
+ *   define( 'WP_FS__SKIP_EMAIL_ACTIVATION', true );
+ *   define( 'WP_FS__formcatch_SECRET_KEY', '<your secret key>' );
  */
 
 if ( ! defined( 'ABSPATH' ) ) {
 	exit;
 }
 
-if ( ! function_exists( 'fc_fs' ) ) {
+if ( ! function_exists( 'for_fs' ) ) {
+	// Create a helper function for easy SDK access.
+	function for_fs() {
+		global $for_fs;
 
-	/**
-	 * Create / fetch the Freemius instance.
-	 *
-	 * @return Freemius|null Null when the SDK isn't installed yet.
-	 */
-	function fc_fs() {
-		global $fc_fs;
+		if ( ! isset( $for_fs ) ) {
+			$sdk = FC_PLUGIN_DIR . 'vendor/freemius/start.php';
 
-		if ( isset( $fc_fs ) ) {
-			return $fc_fs;
+			// SDK not present — run as free tier, never fatal.
+			if ( ! file_exists( $sdk ) ) {
+				$for_fs = null;
+				return null;
+			}
+
+			// Include Freemius SDK.
+			require_once $sdk;
+
+			$for_fs = fs_dynamic_init(
+				array(
+					'id'                  => '33969',
+					'slug'                => 'formcatch',
+					'type'                => 'plugin',
+					'public_key'          => 'pk_4f5b9d3e331d208189d347734a5f1',
+					'is_premium'          => true,
+					'premium_suffix'      => 'Pro',
+					// If your plugin is a serviceware, set this option to false.
+					'has_premium_version' => true,
+					'has_addons'          => false,
+					'has_paid_plans'      => true,
+					'is_org_compliant'    => true,
+					// Automatically removed in the free version. If you're not using
+					// the auto-generated free version, delete this line before
+					// uploading to wp.org.
+					'wp_org_gatekeeper'   => 'OA7#BoRiBNqdf52FvzEf!!074aRLPs8fspif$7K1#4u4Csys1fQlCecVcUTOs2mcpeVHi#C2j9d09fOTvbC0HloPT7fFee5WdS3G',
+					'menu'                => array(
+						// FormCatch's top-level menu slug, so Freemius nests its
+						// Account / Upgrade pages under FormCatch (not at the top).
+						'slug'    => 'formcatch-forms',
+						'support' => false,
+					),
+				)
+			);
 		}
 
-		$sdk = FC_PLUGIN_DIR . 'vendor/freemius/start.php';
-
-		// SDK not present yet — run as free tier, never fatal.
-		if ( ! file_exists( $sdk ) ) {
-			$fc_fs = null;
-			return null;
-		}
-
-		require_once $sdk;
-
-		$fc_fs = fs_dynamic_init(
-			array(
-				'id'                  => 'FREEMIUS_PLUGIN_ID',   // <-- from Freemius dashboard.
-				'slug'                => 'formcatch',
-				'type'                => 'plugin',
-				'public_key'          => 'FREEMIUS_PUBLIC_KEY',  // <-- from Freemius dashboard.
-				'is_premium'          => true,
-				// One codebase serves both tiers; gate at runtime, don't strip code.
-				'is_premium_only'     => false,
-				'has_premium_version' => true,
-				'has_addons'          => false,
-				'has_paid_plans'      => true,
-				'menu'                => array(
-					'slug'    => 'formcatch-forms', // FormCatch top-level menu slug.
-					'first-path' => 'admin.php?page=formcatch-forms',
-					'account' => true,
-					'contact' => false, // No support desk — solo project.
-					'support' => false,
-				),
-				'is_org_compliant'    => true, // Free version is distributed on WordPress.org.
-			)
-		);
-
-		return $fc_fs;
+		return $for_fs;
 	}
 
-	// Init as early as possible, then let the rest of the plugin know.
-	fc_fs();
-	do_action( 'fc_fs_loaded' );
+	// Init Freemius.
+	for_fs();
+	// Signal that SDK was initiated.
+	do_action( 'for_fs_loaded' );
 }

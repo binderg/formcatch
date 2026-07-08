@@ -1,5 +1,7 @@
 node_modules/
-vendor/
+vendor/*
+# The Freemius SDK is a runtime dependency and must ship with the plugin.
+!vendor/freemius/
 *.log
 .DS_Store
 Thumbs.db
