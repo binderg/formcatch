@@ -17,6 +17,8 @@ class FC_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_error_notice' ) );
+		add_action( 'admin_notices', array( $this, 'maybe_show_upgrade_banner' ) );
+		add_action( 'admin_init', array( $this, 'maybe_dismiss_upgrade_banner' ) );
 
 		add_action( 'admin_post_fc_save_form', array( $this, 'handle_save_form' ) );
 		add_action( 'admin_post_fc_delete_form', array( $this, 'handle_delete_form' ) );
@@ -192,6 +194,71 @@ class FC_Admin {
 			esc_url( $url ),
 			esc_html__( 'View error log', 'formcatch' )
 		);
+	}
+
+	/**
+	 * Free-tier upgrade banner shown on FormCatch admin screens. Dismissible
+	 * per user (persisted in user meta). Never shown on a licensed Pro install.
+	 */
+	public function maybe_show_upgrade_banner() {
+		if ( ! current_user_can( FC_Helpers::capability() ) ) {
+			return;
+		}
+
+		// Pro users have already paid — no pitch.
+		if ( FC_Helpers::is_pro() ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+		if ( ! $screen || false === strpos( (string) $screen->id, 'formcatch' ) ) {
+			return;
+		}
+
+		if ( get_user_meta( get_current_user_id(), 'fc_upgrade_banner_dismissed', true ) ) {
+			return;
+		}
+
+		$dismiss_url = wp_nonce_url(
+			add_query_arg( 'fc_dismiss_upgrade', '1' ),
+			'fc_dismiss_upgrade'
+		);
+		?>
+		<div class="fc-upgrade-banner">
+			<span class="fc-ub-icon"><span class="dashicons dashicons-star-filled"></span></span>
+			<div class="fc-ub-body">
+				<p class="fc-ub-title">
+					<?php esc_html_e( 'Unlock FormCatch Pro', 'formcatch' ); ?>
+					<span class="fc-ub-price"><?php esc_html_e( '$50 lifetime · unlimited sites', 'formcatch' ); ?></span>
+				</p>
+				<p class="fc-ub-text">
+					<?php esc_html_e( 'Send submissions to webhooks (Slack, Zapier, and more) and read them over the REST API — plus all future updates. FormCatch stays free on this site; if it is useful to you, consider supporting the developer and getting a license.', 'formcatch' ); ?>
+				</p>
+			</div>
+			<div class="fc-ub-actions">
+				<a href="<?php echo esc_url( FC_Helpers::upgrade_url() ); ?>" class="fc-ub-cta"><?php esc_html_e( 'Get a lifetime license', 'formcatch' ); ?></a>
+				<a href="<?php echo esc_url( $dismiss_url ); ?>" class="fc-ub-dismiss"><?php esc_html_e( 'Dismiss', 'formcatch' ); ?></a>
+			</div>
+		</div>
+		<?php
+	}
+
+	/**
+	 * Persist dismissal of the upgrade banner for the current user.
+	 */
+	public function maybe_dismiss_upgrade_banner() {
+		if ( ! isset( $_GET['fc_dismiss_upgrade'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( FC_Helpers::capability() ) ) {
+			return;
+		}
+		check_admin_referer( 'fc_dismiss_upgrade' );
+
+		update_user_meta( get_current_user_id(), 'fc_upgrade_banner_dismissed', 1 );
+
+		wp_safe_redirect( remove_query_arg( array( 'fc_dismiss_upgrade', '_wpnonce' ) ) );
+		exit;
 	}
 
 	/* -----------------------------------------------------------------
