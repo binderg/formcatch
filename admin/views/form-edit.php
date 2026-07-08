@@ -92,13 +92,12 @@ $token    = $is_new ? '' : $form->token;
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'File uploads', 'formcatch' ); ?><?php echo FC_Helpers::is_pro() ? '' : wp_kses_post( FC_Helpers::pro_badge() ); ?></th>
+					<th scope="row"><?php esc_html_e( 'File uploads', 'formcatch' ); ?></th>
 					<td>
 						<label>
-							<input type="checkbox" name="allow_uploads" value="1" <?php checked( ! empty( $settings['allow_uploads'] ) ); ?> <?php disabled( ! FC_Helpers::is_pro() ); ?> />
+							<input type="checkbox" name="allow_uploads" value="1" <?php checked( ! empty( $settings['allow_uploads'] ) ); ?> />
 							<?php esc_html_e( 'Accept file uploads on this form', 'formcatch' ); ?>
 						</label>
-						<?php echo wp_kses_post( FC_Helpers::pro_lock_notice( __( 'File uploads', 'formcatch' ) ) ); ?>
 						<p class="description">
 							<?php
 							printf(
@@ -233,12 +232,9 @@ $token    = $is_new ? '' : $form->token;
 		<div class="fc-tab-panel" id="fc-tab-spam">
 			<table class="form-table" role="presentation">
 				<tr>
-					<th scope="row"><?php esc_html_e( 'CAPTCHA', 'formcatch' ); ?><?php echo FC_Helpers::is_pro() ? '' : wp_kses_post( FC_Helpers::pro_badge() ); ?></th>
+					<th scope="row"><?php esc_html_e( 'CAPTCHA', 'formcatch' ); ?></th>
 					<td>
-						<?php if ( ! FC_Helpers::is_pro() ) : ?>
-							<p class="description"><?php esc_html_e( 'Block spam bots with Cloudflare Turnstile, hCaptcha, or Google reCAPTCHA.', 'formcatch' ); ?></p>
-							<?php echo wp_kses_post( FC_Helpers::pro_lock_notice( __( 'CAPTCHA', 'formcatch' ) ) ); ?>
-						<?php elseif ( FC_Captcha::is_configured() ) : ?>
+						<?php if ( FC_Captcha::is_configured() ) : ?>
 							<label>
 								<input type="checkbox" name="require_captcha" value="1" <?php checked( ! empty( $settings['require_captcha'] ) ); ?> />
 								<?php

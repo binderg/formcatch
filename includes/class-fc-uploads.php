@@ -145,11 +145,6 @@ class FC_Uploads {
 	 * @return void
 	 */
 	public static function process( $form, $request, $submission_id ) {
-		// Pro feature — free installs don't process uploads.
-		if ( ! FC_Helpers::can_use( 'uploads' ) ) {
-			return;
-		}
-
 		if ( empty( $form->settings_arr['allow_uploads'] ) ) {
 			return;
 		}

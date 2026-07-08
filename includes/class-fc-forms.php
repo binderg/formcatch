@@ -88,20 +88,13 @@ class FC_Forms {
 				: FC_Helpers::generate_honeypot_field();
 		}
 
-		// Pro-only settings can't be stored as "on" on a free install, so the
-		// saved state never lies about what will actually run. Runtime enforces
-		// this too; clamping here keeps admin, REST, and import consistent.
-		// Only clamp keys actually present (respects partial/PATCH updates).
-		if ( ! FC_Helpers::is_pro() ) {
-			if ( array_key_exists( 'require_captcha', $input ) || ! $partial ) {
-				$out['require_captcha'] = false;
-			}
-			if ( array_key_exists( 'allow_uploads', $input ) || ! $partial ) {
-				$out['allow_uploads'] = false;
-			}
-			if ( array_key_exists( 'webhook_url', $input ) || ! $partial ) {
-				$out['webhook_url'] = '';
-			}
+		// Webhooks are a Pro feature — a free install can't store a webhook URL,
+		// so the saved config never claims a webhook will fire when the runtime
+		// won't run it. Runtime enforces this too; clamping here keeps admin,
+		// REST, and import consistent. Only clamp when the key is present
+		// (respects partial/PATCH updates).
+		if ( ! FC_Helpers::is_pro() && ( array_key_exists( 'webhook_url', $input ) || ! $partial ) ) {
+			$out['webhook_url'] = '';
 		}
 
 		return $out;

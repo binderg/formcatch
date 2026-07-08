@@ -85,12 +85,6 @@ class FC_Captcha {
 	public static function verify( $form, $request ) {
 		$settings = $form->settings_arr;
 
-		// Pro feature — free installs never enforce CAPTCHA (and the admin UI
-		// won't let a free site require it), so treat as passed.
-		if ( ! FC_Helpers::can_use( 'captcha' ) ) {
-			return true;
-		}
-
 		// Not required for this form, or not configured globally → pass.
 		if ( empty( $settings['require_captcha'] ) || ! self::is_configured() ) {
 			return true;
