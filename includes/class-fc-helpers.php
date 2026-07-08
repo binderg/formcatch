@@ -19,6 +19,83 @@ class FC_Helpers {
 	}
 
 	/**
+	 * Whether this site can use Pro features. Backed by Freemius: true when
+	 * running a licensed (paid or trial) Pro install. When the Freemius SDK
+	 * isn't present the site is treated as free.
+	 *
+	 * The $feature argument is currently informational (all four Pro features
+	 * share one plan) but is accepted so gating can later be split per plan
+	 * without touching call sites.
+	 *
+	 * @param string $feature Optional feature slug: captcha|uploads|webhooks|api.
+	 * @return bool
+	 */
+	public static function can_use( $feature = '' ) {
+		if ( ! function_exists( 'fc_fs' ) ) {
+			return false;
+		}
+		$fs = fc_fs();
+		if ( ! $fs ) {
+			return false;
+		}
+		return (bool) $fs->can_use_premium_code();
+	}
+
+	/**
+	 * Convenience alias for readability at call sites.
+	 *
+	 * @return bool
+	 */
+	public static function is_pro() {
+		return self::can_use();
+	}
+
+	/**
+	 * URL to the FormCatch upgrade/pricing screen (Freemius-generated), or the
+	 * public site if the SDK isn't loaded. Safe to use in admin views.
+	 *
+	 * @return string
+	 */
+	public static function upgrade_url() {
+		if ( function_exists( 'fc_fs' ) && fc_fs() ) {
+			return fc_fs()->get_upgrade_url();
+		}
+		return 'https://formcatch.dev/pricing/';
+	}
+
+	/**
+	 * A small inline "PRO" badge for admin labels.
+	 *
+	 * @return string HTML.
+	 */
+	public static function pro_badge() {
+		return ' <span class="fc-pro-badge" style="display:inline-block;font-size:10px;font-weight:600;line-height:1;padding:3px 6px;border-radius:3px;background:#8250df;color:#fff;vertical-align:middle;letter-spacing:.03em;">PRO</span>';
+	}
+
+	/**
+	 * Upgrade nudge shown under a locked (Pro) admin field. Returns nothing on
+	 * a licensed Pro install so views can print it unconditionally.
+	 *
+	 * @param string $label Human name of the feature, e.g. "File uploads".
+	 * @return string HTML.
+	 */
+	public static function pro_lock_notice( $label ) {
+		if ( self::is_pro() ) {
+			return '';
+		}
+		return sprintf(
+			'<p class="description">%s <a href="%s">%s</a></p>',
+			esc_html( sprintf(
+				/* translators: %s: feature name */
+				__( '%s is a FormCatch Pro feature.', 'formcatch' ),
+				$label
+			) ),
+			esc_url( self::upgrade_url() ),
+			esc_html__( 'Upgrade to unlock', 'formcatch' )
+		);
+	}
+
+	/**
 	 * Generate a URL-safe random token for a form's submit endpoint.
 	 *
 	 * @return string

@@ -15,6 +15,11 @@ class FC_Webhook {
 	 * @return bool
 	 */
 	public static function send( $form, $payload, $submission_id ) {
+		// Pro feature — free installs don't fire webhooks.
+		if ( ! FC_Helpers::can_use( 'webhooks' ) ) {
+			return false;
+		}
+
 		$settings = $form->settings_arr;
 		$urls     = self::get_urls( $settings );
 

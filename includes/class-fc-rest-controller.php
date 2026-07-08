@@ -289,6 +289,15 @@ class FC_REST_Controller {
 	 * @return bool|WP_Error
 	 */
 	public function read_permission() {
+		// The REST/Forms API is a Pro feature. Free installs get a clear 402
+		// rather than a permission error, so the reason is obvious.
+		if ( ! FC_Helpers::can_use( 'api' ) ) {
+			return new WP_Error(
+				'fc_pro_required',
+				__( 'The FormCatch REST API is a Pro feature. Upgrade to enable programmatic access.', 'formcatch' ),
+				array( 'status' => 402 )
+			);
+		}
 		if ( current_user_can( FC_Helpers::capability() ) ) {
 			return true;
 		}

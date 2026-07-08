@@ -92,12 +92,13 @@ $token    = $is_new ? '' : $form->token;
 					</td>
 				</tr>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'File uploads', 'formcatch' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'File uploads', 'formcatch' ); ?><?php echo FC_Helpers::is_pro() ? '' : wp_kses_post( FC_Helpers::pro_badge() ); ?></th>
 					<td>
 						<label>
-							<input type="checkbox" name="allow_uploads" value="1" <?php checked( ! empty( $settings['allow_uploads'] ) ); ?> />
+							<input type="checkbox" name="allow_uploads" value="1" <?php checked( ! empty( $settings['allow_uploads'] ) ); ?> <?php disabled( ! FC_Helpers::is_pro() ); ?> />
 							<?php esc_html_e( 'Accept file uploads on this form', 'formcatch' ); ?>
 						</label>
+						<?php echo wp_kses_post( FC_Helpers::pro_lock_notice( __( 'File uploads', 'formcatch' ) ) ); ?>
 						<p class="description">
 							<?php
 							printf(
@@ -232,9 +233,12 @@ $token    = $is_new ? '' : $form->token;
 		<div class="fc-tab-panel" id="fc-tab-spam">
 			<table class="form-table" role="presentation">
 				<tr>
-					<th scope="row"><?php esc_html_e( 'CAPTCHA', 'formcatch' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'CAPTCHA', 'formcatch' ); ?><?php echo FC_Helpers::is_pro() ? '' : wp_kses_post( FC_Helpers::pro_badge() ); ?></th>
 					<td>
-						<?php if ( FC_Captcha::is_configured() ) : ?>
+						<?php if ( ! FC_Helpers::is_pro() ) : ?>
+							<p class="description"><?php esc_html_e( 'Block spam bots with Cloudflare Turnstile, hCaptcha, or Google reCAPTCHA.', 'formcatch' ); ?></p>
+							<?php echo wp_kses_post( FC_Helpers::pro_lock_notice( __( 'CAPTCHA', 'formcatch' ) ) ); ?>
+						<?php elseif ( FC_Captcha::is_configured() ) : ?>
 							<label>
 								<input type="checkbox" name="require_captcha" value="1" <?php checked( ! empty( $settings['require_captcha'] ) ); ?> />
 								<?php
@@ -311,10 +315,11 @@ $token    = $is_new ? '' : $form->token;
 		<div class="fc-tab-panel" id="fc-tab-advanced">
 			<table class="form-table" role="presentation">
 				<tr>
-					<th scope="row"><label for="fc-webhook"><?php esc_html_e( 'Webhook URL(s)', 'formcatch' ); ?></label></th>
+					<th scope="row"><label for="fc-webhook"><?php esc_html_e( 'Webhook URL(s)', 'formcatch' ); ?></label><?php echo FC_Helpers::is_pro() ? '' : wp_kses_post( FC_Helpers::pro_badge() ); ?></th>
 					<td>
-						<textarea id="fc-webhook" name="webhook_url" class="regular-text" rows="3" placeholder="https://hooks.slack.com/services/...&#10;https://hooks.zapier.com/..."><?php echo esc_textarea( $settings['webhook_url'] ); ?></textarea>
+						<textarea id="fc-webhook" name="webhook_url" class="regular-text" rows="3" placeholder="https://hooks.slack.com/services/...&#10;https://hooks.zapier.com/..." <?php disabled( ! FC_Helpers::is_pro() ); ?>><?php echo esc_textarea( $settings['webhook_url'] ); ?></textarea>
 						<p class="description"><?php esc_html_e( 'Optional. One URL per line (or comma separated). Each non-spam submission is POSTed to every URL as JSON: {form_id, form_name, submission_id, submitted_at, data}. Leave blank to disable.', 'formcatch' ); ?></p>
+						<?php echo wp_kses_post( FC_Helpers::pro_lock_notice( __( 'Webhooks', 'formcatch' ) ) ); ?>
 					</td>
 				</tr>
 			</table>

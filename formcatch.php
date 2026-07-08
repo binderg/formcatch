@@ -26,6 +26,11 @@ define( 'FC_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
 define( 'FC_PLUGIN_BASENAME', plugin_basename( __FILE__ ) );
 
 /**
+ * Freemius must initialize before any plugin logic runs.
+ */
+require_once FC_PLUGIN_DIR . 'includes/fc-freemius.php';
+
+/**
  * Class autoload / includes.
  */
 require_once FC_PLUGIN_DIR . 'includes/class-fc-helpers.php';
