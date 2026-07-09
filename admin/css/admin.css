@@ -27,7 +27,38 @@
 .fc-badge-log-success { background: #d4f4dd; color: #1a7a3d; }
 .fc-badge-log-error   { background: #f8d7da; color: #a12622; }
 .fc-badge-log-skipped { background: #fcf0d4; color: #8a6d1a; }
-.fc-log-context { color: #777; }
+.fc-muted { color: #8c8f94; }
+
+/* Collapsible context under a log message. */
+.fc-log-context { color: #777; margin-top: 4px; }
+.fc-log-context > summary {
+	cursor: pointer;
+	display: inline-block;
+	font-size: 12px;
+	color: #2271b1;
+	list-style: none;
+}
+.fc-log-context > summary::-webkit-details-marker { display: none; }
+.fc-log-context > summary::before { content: '\25B8'; margin-right: 4px; font-size: 10px; }
+.fc-log-context[open] > summary::before { content: '\25BE'; }
+.fc-log-context > summary:hover { color: #135e96; }
+.fc-log-context dl {
+	margin: 6px 0 0;
+	display: grid;
+	grid-template-columns: minmax(80px, max-content) 1fr;
+	gap: 2px 12px;
+	font-size: 12px;
+}
+.fc-log-context dt { font-weight: 600; color: #50575e; }
+.fc-log-context dd {
+	margin: 0;
+	/* Long webhook bodies wrap and scroll instead of stretching the table. */
+	white-space: pre-wrap;
+	word-break: break-word;
+	max-height: 180px;
+	overflow-y: auto;
+	font-family: ui-monospace, Consolas, monospace;
+}
 
 .fc-endpoint-box {
 	background: #fff;

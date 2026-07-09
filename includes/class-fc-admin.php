@@ -49,7 +49,7 @@ class FC_Admin {
 			$cap,
 			'formcatch-forms',
 			array( $this, 'render_forms_page' ),
-			'dashicons-feedback',
+			$this->menu_icon(),
 			30
 		);
 
@@ -57,6 +57,22 @@ class FC_Admin {
 		add_submenu_page( 'formcatch-forms', __( 'Submissions', 'formcatch' ), __( 'Submissions', 'formcatch' ), $cap, 'formcatch-submissions', array( $this, 'render_submissions_page' ) );
 		add_submenu_page( 'formcatch-forms', __( 'Logs', 'formcatch' ), $this->logs_menu_title(), $cap, 'formcatch-logs', array( $this, 'render_logs_page' ) );
 		add_submenu_page( 'formcatch-forms', __( 'Settings', 'formcatch' ), __( 'Settings', 'formcatch' ), $cap, 'formcatch-settings', array( $this, 'render_settings_page' ) );
+	}
+
+	/**
+	 * The top-level admin menu icon, as a base64 data URI. WordPress recolors
+	 * data-URI SVG icons to match the admin color scheme, so the source file's
+	 * own fill doesn't matter for how it renders in the sidebar. Falls back to
+	 * a dashicon if the file is ever missing.
+	 *
+	 * @return string
+	 */
+	private function menu_icon() {
+		$path = FC_PLUGIN_DIR . 'admin/img/menu-icon.svg';
+		if ( ! file_exists( $path ) ) {
+			return 'dashicons-feedback';
+		}
+		return 'data:image/svg+xml;base64,' . base64_encode( file_get_contents( $path ) ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents
 	}
 
 	public function enqueue_assets( $hook ) {

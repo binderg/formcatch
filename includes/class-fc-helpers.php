@@ -51,8 +51,8 @@ class FC_Helpers {
 	}
 
 	/**
-	 * URL to the FormCatch upgrade/pricing screen (Freemius-generated), or the
-	 * public site if the SDK isn't loaded. Safe to use in admin views.
+	 * URL to the FormCatch upgrade screen (Freemius-generated), or the public
+	 * plans page if the SDK isn't loaded. Safe to use in admin views.
 	 *
 	 * @return string
 	 */
@@ -60,7 +60,7 @@ class FC_Helpers {
 		if ( function_exists( 'for_fs' ) && for_fs() ) {
 			return for_fs()->get_upgrade_url();
 		}
-		return 'https://formcatch.dev/pricing/';
+		return 'https://formcatch.dev/plans/';
 	}
 
 	/**

@@ -1,0 +1,37 @@
+# Files and directories excluded from the distributed plugin zip.
+#
+# `assets/` holds the wp.org listing images (icon, banners, screenshots). Those
+# live in the SVN /assets directory on wordpress.org, NOT inside the plugin
+# users download — shipping them just bloats every install.
+#
+# `vendor/freemius` is deliberately NOT listed here: the SDK is required at
+# runtime and must ship.
+
+.git
+.gitignore
+.gitattributes
+.distignore
+.github
+.vscode
+.idea
+.claude
+
+assets
+TODO.md
+
+node_modules
+tests
+phpunit.xml
+phpunit.xml.dist
+phpcs.xml
+phpcs.xml.dist
+composer.json
+composer.lock
+package.json
+package-lock.json
+
+*.sql
+*.log
+*.zip
+.DS_Store
+Thumbs.db

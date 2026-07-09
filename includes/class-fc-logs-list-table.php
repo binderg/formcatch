@@ -25,11 +25,12 @@ class FC_Logs_List_Table extends WP_List_Table {
 
 	public function get_columns() {
 		return array(
-			'created' => __( 'Time', 'formcatch' ),
-			'type'    => __( 'Event type', 'formcatch' ),
-			'status'  => __( 'Status', 'formcatch' ),
-			'form'    => __( 'Form', 'formcatch' ),
-			'message' => __( 'Event', 'formcatch' ),
+			'created'    => __( 'Time', 'formcatch' ),
+			'type'       => __( 'Event type', 'formcatch' ),
+			'status'     => __( 'Status', 'formcatch' ),
+			'form'       => __( 'Form', 'formcatch' ),
+			'submission' => __( 'Submission', 'formcatch' ),
+			'message'    => __( 'Message', 'formcatch' ),
 		);
 	}
 
@@ -43,6 +44,7 @@ class FC_Logs_List_Table extends WP_List_Table {
 		global $wpdb;
 		$table       = FC_DB::logs_table();
 		$forms_table = FC_DB::forms_table();
+		$subs_table  = FC_DB::submissions_table();
 
 		$this->_column_headers = array( $this->get_columns(), array(), $this->get_sortable_columns() );
 
@@ -79,7 +81,12 @@ class FC_Logs_List_Table extends WP_List_Table {
 		$orderby = ! empty( $_GET['orderby'] ) ? sanitize_sql_orderby( wp_unslash( $_GET['orderby'] ) ) : 'created_at';
 		$order   = ( ! empty( $_GET['order'] ) && 'asc' === strtolower( $_GET['order'] ) ) ? 'ASC' : 'DESC';
 
-		$base_query = "FROM {$table} l LEFT JOIN {$forms_table} f ON f.id = l.form_id WHERE {$where_sql}";
+		// The submissions join lets us tell "no submission attached" apart from
+		// "submission was deleted", so we never render a link to a dead row.
+		$base_query = "FROM {$table} l
+			LEFT JOIN {$forms_table} f ON f.id = l.form_id
+			LEFT JOIN {$subs_table} s ON s.id = l.submission_id
+			WHERE {$where_sql}";
 
 		if ( ! empty( $params ) ) {
 			$count_sql = $wpdb->prepare( "SELECT COUNT(*) {$base_query}", $params ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -89,7 +96,7 @@ class FC_Logs_List_Table extends WP_List_Table {
 		$total_items = (int) $wpdb->get_var( $count_sql ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
 
 		$offset       = ( $current_page - 1 ) * $per_page;
-		$select_sql   = "SELECT l.*, f.name AS form_name {$base_query} ORDER BY l.{$orderby} {$order} LIMIT %d OFFSET %d";
+		$select_sql   = "SELECT l.*, f.name AS form_name, s.id AS submission_exists {$base_query} ORDER BY l.{$orderby} {$order} LIMIT %d OFFSET %d";
 		$query_params = array_merge( $params, array( $per_page, $offset ) );
 
 		$this->items = $wpdb->get_results( $wpdb->prepare( $select_sql, $query_params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
@@ -128,30 +135,94 @@ class FC_Logs_List_Table extends WP_List_Table {
 		return esc_html( $item->form_name ? $item->form_name : __( '(deleted form)', 'formcatch' ) );
 	}
 
+	/**
+	 * Link to the submission this event belongs to — "the email failed, show me
+	 * the submission it was for" is the question this screen exists to answer.
+	 */
+	public function column_submission( $item ) {
+		if ( ! $item->submission_id ) {
+			return '&mdash;';
+		}
+
+		// Submission rows can be pruned by retention while the log survives.
+		if ( ! $item->submission_exists ) {
+			return '<span class="fc-muted">' . esc_html__( '(deleted)', 'formcatch' ) . '</span>';
+		}
+
+		$url = admin_url( 'admin.php?page=formcatch-submissions&view=' . (int) $item->submission_id );
+
+		return sprintf(
+			'<a href="%s">#%d</a>',
+			esc_url( $url ),
+			(int) $item->submission_id
+		);
+	}
+
 	public function column_message( $item ) {
 		$out = '<span>' . esc_html( $item->message ) . '</span>';
 
-		// Show structured context inline for quick diagnosis.
-		if ( ! empty( $item->context ) ) {
-			$ctx = json_decode( $item->context, true );
-			if ( is_array( $ctx ) && ! empty( $ctx ) ) {
-				$bits = array();
-				foreach ( $ctx as $k => $v ) {
-					if ( is_array( $v ) ) {
-						$v = implode( ', ', array_map( 'strval', $v ) );
-					}
-					if ( '' === (string) $v ) {
-						continue;
-					}
-					$bits[] = esc_html( $k . ': ' . $v );
-				}
-				if ( $bits ) {
-					$out .= '<br /><small class="fc-log-context">' . implode( ' &nbsp;·&nbsp; ', $bits ) . '</small>';
-				}
-			}
+		if ( empty( $item->context ) ) {
+			return $out;
 		}
 
+		$ctx = json_decode( $item->context, true );
+		if ( ! is_array( $ctx ) || empty( $ctx ) ) {
+			return $out;
+		}
+
+		$rows = array();
+		foreach ( $ctx as $key => $value ) {
+			$value = self::stringify_context_value( $value );
+			if ( '' === $value ) {
+				continue;
+			}
+			$rows[] = '<dt>' . esc_html( $key ) . '</dt><dd>' . esc_html( $value ) . '</dd>';
+		}
+
+		if ( ! $rows ) {
+			return $out;
+		}
+
+		// Collapsed by default: a failed webhook can carry a 500-character
+		// response body, which would otherwise wreck the table row.
+		$out .= '<details class="fc-log-context">';
+		$out .= '<summary>' . esc_html__( 'Details', 'formcatch' ) . '</summary>';
+		$out .= '<dl>' . implode( '', $rows ) . '</dl>';
+		$out .= '</details>';
+
 		return $out;
+	}
+
+	/**
+	 * Flatten a single context value for display. Nested arrays are rendered as
+	 * pretty JSON rather than imploded, which previously turned any nested
+	 * associative array into the literal string "Array" and dropped its keys.
+	 *
+	 * @param mixed $value
+	 * @return string
+	 */
+	private static function stringify_context_value( $value ) {
+		if ( is_bool( $value ) ) {
+			return $value ? 'true' : 'false';
+		}
+
+		if ( null === $value ) {
+			return '';
+		}
+
+		if ( is_scalar( $value ) ) {
+			return trim( (string) $value );
+		}
+
+		if ( is_array( $value ) ) {
+			// A flat list stays readable as a comma-separated line.
+			if ( array_values( $value ) === $value && ! array_filter( $value, 'is_array' ) ) {
+				return implode( ', ', array_map( array( __CLASS__, 'stringify_context_value' ), $value ) );
+			}
+			return (string) wp_json_encode( $value, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES );
+		}
+
+		return '';
 	}
 
 	public function no_items() {

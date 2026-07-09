@@ -11,23 +11,29 @@
 ## wp-config / environment
 - [ ] Confirm `WP_FS__DEV_MODE` / `WP_FS__SKIP_EMAIL_ACTIVATION` are NOT set on production site (local-dev only)
 
-## Plugin assets (missing)
-- [ ] Add `/assets` folder for wp.org listing: icon-128x128, banner-772x250, screenshots (if listing free version on wp.org)
+## Plugin assets
 - [x] Dropped `Domain Path: /languages` from plugin header (not using translations)
 - [x] Added `/assets` folder with wp.org-sized icon/banner images (icon-128/256, banner-772x250/1544x500)
+- [x] Fixed banner filenames — wp.org matches them exactly (`banner-1544x500.jpg`, not `banner_1554x500.jpg`)
+- [x] Produce the 5 screenshots promised in `readme.txt` (`assets/screenshot-1.png` … `screenshot-5.png`)
 
 ## Code/security pass
 - [x] No debug leftovers (`var_dump`, `console.log`, TODO/FIXME) — clean
 - [x] No hardcoded secrets — clean
-- [x] `uninstall.php` opt-in-gated data deletion — matches WP.org guidelines
+- [x] Opt-in-gated data deletion, now on Freemius `after_uninstall` (Freemius forbids `uninstall.php`)
+- [x] Nonce + capability on all 12 `admin_post` handlers; file downloads use HMAC signed URLs w/ `hash_equals`
 
 ## Version/readme
 - [x] `readme.txt` stable tag matches `FC_VERSION` in `formcatch.php` — keep in sync every release
-- [ ] Add standard wp.org readme sections if listing free version there: `== Description ==`, `== Installation ==`, `== Screenshots ==`, `Tags:`, `Donate link:`
+- [x] Added `== Description ==`, `== Installation ==`, `== Screenshots ==`, `Tags:`, `License URI:`, short description
+- [x] Added `== External services ==` disclosure (Freemius, reCAPTCHA, hCaptcha, Turnstile, GitHub blocklist) — required by wp.org
+- [x] Bumped `Tested up to: 7.0`
+- [x] Confirmed `Contributors: GStudios` matches the real wordpress.org username
 
 ## Packaging
-- [ ] Add `.distignore` (exclude `.git`, tests, dev cruft — keep `vendor/freemius`, it's required at runtime)
-- [ ] Clean-install smoke test: fresh WP, activate, no fatals, DB tables created, free-tier gating (CAPTCHA/uploads/webhooks/REST) locked pre-license
+- [x] Added `.distignore` (excludes `assets/`, `TODO.md`, dev cruft — keeps `vendor/freemius`, required at runtime)
+- [ ] Upload the Freemius-generated **free** build to wp.org, not this repo's zip (this build is `is_premium => true`)
+- [ ] Clean-install smoke test: fresh WP, activate, no fatals, DB tables created, free-tier gating (webhooks + REST API) locked pre-license
 
 ## Final QA
 - [ ] License activate → deactivate → reactivate cycle
