@@ -22,6 +22,7 @@ $upload_max_files     = get_option( 'fc_upload_max_files', 10 );
 $server_limit_bytes   = wp_max_upload_size();
 ?>
 <div class="wrap fc-wrap">
+	<?php include __DIR__ . '/partials/header-banner.php'; ?>
 	<h1><?php esc_html_e( 'FormCatch — Settings', 'formcatch' ); ?></h1>
 
 	<?php if ( ! empty( $_GET['saved'] ) ) : ?>
@@ -32,6 +33,7 @@ $server_limit_bytes   = wp_max_upload_size();
 		<?php wp_nonce_field( 'fc_save_settings' ); ?>
 		<input type="hidden" name="action" value="fc_save_settings" />
 
+		<h2><?php esc_html_e( 'Submissions', 'formcatch' ); ?></h2>
 		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><label for="fc-rate-limit"><?php esc_html_e( 'Rate limit', 'formcatch' ); ?></label></th>
@@ -47,6 +49,25 @@ $server_limit_bytes   = wp_max_upload_size();
 					<?php esc_html_e( 'fields (0 = no limit). Submissions with more fields are rejected to prevent database bloat.', 'formcatch' ); ?>
 				</td>
 			</tr>
+			<tr>
+				<th scope="row"><label for="fc-log-retention"><?php esc_html_e( 'Log retention', 'formcatch' ); ?></label></th>
+				<td>
+					<input type="number" id="fc-log-retention" name="fc_log_retention_days" min="0" value="<?php echo esc_attr( $log_retention ); ?>" class="small-text" />
+					<?php esc_html_e( 'days to keep log events before automatic deletion (0 = keep forever)', 'formcatch' ); ?>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><label for="fc-sub-retention"><?php esc_html_e( 'Submission retention', 'formcatch' ); ?></label></th>
+				<td>
+					<input type="number" id="fc-sub-retention" name="fc_submission_retention_days" min="0" value="<?php echo esc_attr( $submission_retention ); ?>" class="small-text" />
+					<?php esc_html_e( 'days to keep submissions before automatic deletion (0 = keep forever)', 'formcatch' ); ?>
+					<p class="description"><?php esc_html_e( 'Off by default. Useful for GDPR/data-minimization — but note this permanently deletes stored submissions older than the window.', 'formcatch' ); ?></p>
+				</td>
+			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'CORS & Webhooks', 'formcatch' ); ?></h2>
+		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><label for="fc-cors"><?php esc_html_e( 'Allowed origins (CORS)', 'formcatch' ); ?></label></th>
 				<td>
@@ -65,23 +86,12 @@ $server_limit_bytes   = wp_max_upload_size();
 					</p>
 				</td>
 			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'CAPTCHA', 'formcatch' ); ?></h2>
+		<table class="form-table" role="presentation">
 			<tr>
-				<th scope="row"><label for="fc-log-retention"><?php esc_html_e( 'Log retention', 'formcatch' ); ?></label></th>
-				<td>
-					<input type="number" id="fc-log-retention" name="fc_log_retention_days" min="0" value="<?php echo esc_attr( $log_retention ); ?>" class="small-text" />
-					<?php esc_html_e( 'days to keep log events before automatic deletion (0 = keep forever)', 'formcatch' ); ?>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><label for="fc-sub-retention"><?php esc_html_e( 'Submission retention', 'formcatch' ); ?></label></th>
-				<td>
-					<input type="number" id="fc-sub-retention" name="fc_submission_retention_days" min="0" value="<?php echo esc_attr( $submission_retention ); ?>" class="small-text" />
-					<?php esc_html_e( 'days to keep submissions before automatic deletion (0 = keep forever)', 'formcatch' ); ?>
-					<p class="description"><?php esc_html_e( 'Off by default. Useful for GDPR/data-minimization — but note this permanently deletes stored submissions older than the window.', 'formcatch' ); ?></p>
-				</td>
-			</tr>
-			<tr>
-				<th scope="row"><label for="fc-captcha-provider"><?php esc_html_e( 'CAPTCHA', 'formcatch' ); ?></label></th>
+				<th scope="row"><label for="fc-captcha-provider"><?php esc_html_e( 'Provider', 'formcatch' ); ?></label></th>
 				<td>
 					<select id="fc-captcha-provider" name="fc_captcha_provider">
 						<option value="none" <?php selected( $captcha_provider, 'none' ); ?>><?php esc_html_e( 'None', 'formcatch' ); ?></option>
@@ -114,6 +124,10 @@ $server_limit_bytes   = wp_max_upload_size();
 					<?php esc_html_e( 'Minimum score (0–1) to accept. Lower = more lenient. Only applies to reCAPTCHA v3. Default 0.5.', 'formcatch' ); ?>
 				</td>
 			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'File uploads', 'formcatch' ); ?></h2>
+		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><label for="fc-upload-max"><?php esc_html_e( 'Max upload size', 'formcatch' ); ?></label></th>
 				<td>
@@ -143,6 +157,10 @@ $server_limit_bytes   = wp_max_upload_size();
 					<input type="number" id="fc-upload-count" name="fc_upload_max_files" min="1" value="<?php echo esc_attr( $upload_max_files ); ?>" class="small-text" />
 				</td>
 			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'Spam protection', 'formcatch' ); ?></h2>
+		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><?php esc_html_e( 'Disposable emails', 'formcatch' ); ?></th>
 				<td>
@@ -181,6 +199,10 @@ $server_limit_bytes   = wp_max_upload_size();
 					</p>
 				</td>
 			</tr>
+		</table>
+
+		<h2><?php esc_html_e( 'Data', 'formcatch' ); ?></h2>
+		<table class="form-table" role="presentation">
 			<tr>
 				<th scope="row"><?php esc_html_e( 'On uninstall', 'formcatch' ); ?></th>
 				<td>

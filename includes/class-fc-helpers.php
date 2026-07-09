@@ -69,7 +69,7 @@ class FC_Helpers {
 	 * @return string HTML.
 	 */
 	public static function pro_badge() {
-		return ' <span class="fc-pro-badge" style="display:inline-block;font-size:10px;font-weight:600;line-height:1;padding:3px 6px;border-radius:3px;background:#8250df;color:#fff;vertical-align:middle;letter-spacing:.03em;">PRO</span>';
+		return ' <span class="fc-pro-badge" style="display:inline-block;font-size:10px;font-weight:600;line-height:1;padding:2px 7px;border-radius:3px;background:transparent;border:1px solid #dc2626;color:#dc2626;vertical-align:middle;letter-spacing:.03em;">PRO</span>';
 	}
 
 	/**

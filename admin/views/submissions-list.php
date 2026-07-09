@@ -13,6 +13,7 @@ $date_from       = ! empty( $_GET['date_from'] ) ? sanitize_text_field( wp_unsla
 $date_to         = ! empty( $_GET['date_to'] ) ? sanitize_text_field( wp_unslash( $_GET['date_to'] ) ) : '';
 ?>
 <div class="wrap fc-wrap">
+	<?php include __DIR__ . '/partials/header-banner.php'; ?>
 	<h1><?php esc_html_e( 'FormCatch — Submissions', 'formcatch' ); ?></h1>
 
 	<form method="get" class="fc-filters">

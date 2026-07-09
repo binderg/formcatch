@@ -475,7 +475,17 @@ class FC_REST_Controller {
 		}
 
 		$settings = $form->settings_arr;
-		$raw      = $request->get_body_params();
+
+		// Body params cover HTML <form> posts (form-encoded) and multipart.
+		// WordPress does not fold a JSON body into body params, so a caller
+		// posting application/json — a fetch() app or an AI agent — would
+		// otherwise arrive with an empty payload. Merge the JSON body in too;
+		// on a key collision the JSON value wins.
+		$raw  = $request->get_body_params();
+		$json = $request->get_json_params();
+		if ( is_array( $json ) ) {
+			$raw = array_merge( $raw, $json );
+		}
 
 		// Rate limit per IP per form to blunt basic flooding.
 		if ( $this->is_rate_limited( $form->id ) ) {

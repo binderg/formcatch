@@ -10,6 +10,7 @@ $status   = $is_new ? true : ( 'active' === $form->status );
 $token    = $is_new ? '' : $form->token;
 ?>
 <div class="wrap fc-wrap">
+	<?php include __DIR__ . '/partials/header-banner.php'; ?>
 	<h1><?php echo $is_new ? esc_html__( 'Add New Form', 'formcatch' ) : esc_html__( 'Edit Form', 'formcatch' ); ?></h1>
 
 	<?php if ( ! empty( $_GET['saved'] ) ) : ?>

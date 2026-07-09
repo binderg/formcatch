@@ -5,7 +5,13 @@ if ( ! defined( 'ABSPATH' ) ) {
 /** @var FC_Forms_List_Table $list_table */
 ?>
 <div class="wrap fc-wrap">
-	<h1 class="wp-heading-inline"><?php esc_html_e( 'FormCatch — Forms', 'formcatch' ); ?></h1>
+	<?php include __DIR__ . '/partials/header-banner.php'; ?>
+	<h1 class="wp-heading-inline">
+		<?php esc_html_e( 'FormCatch — Forms', 'formcatch' ); ?>
+		<?php if ( FC_Helpers::is_pro() ) : ?>
+			<?php echo wp_kses_post( FC_Helpers::pro_badge() ); ?>
+		<?php endif; ?>
+	</h1>
 	<a href="<?php echo esc_url( admin_url( 'admin.php?page=formcatch-forms&action=new' ) ); ?>" class="page-title-action">
 		<?php esc_html_e( 'Add New', 'formcatch' ); ?>
 	</a>

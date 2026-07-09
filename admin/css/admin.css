@@ -1,3 +1,16 @@
+.fc-header-banner {
+	background: #fff;
+	border: 1px solid #dcdcde;
+	border-radius: 6px;
+	padding: 14px 20px;
+	margin: 0 0 20px;
+}
+.fc-header-banner img {
+	display: block;
+	height: 40px;
+	width: auto;
+}
+
 .fc-wrap .fc-badge {
 	display: inline-block;
 	padding: 2px 8px;

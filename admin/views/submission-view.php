@@ -6,6 +6,7 @@ if ( ! defined( 'ABSPATH' ) ) {
 $back_url = admin_url( 'admin.php?page=formcatch-submissions' );
 ?>
 <div class="wrap fc-wrap">
+	<?php include __DIR__ . '/partials/header-banner.php'; ?>
 	<h1><?php esc_html_e( 'Submission Detail', 'formcatch' ); ?></h1>
 	<p><a href="<?php echo esc_url( $back_url ); ?>">&larr; <?php esc_html_e( 'Back to all submissions', 'formcatch' ); ?></a></p>
 

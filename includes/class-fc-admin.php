@@ -17,8 +17,10 @@ class FC_Admin {
 		add_action( 'admin_menu', array( $this, 'register_menu' ) );
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_error_notice' ) );
+		add_action( 'admin_notices', array( $this, 'maybe_show_smtp_notice' ) );
 		add_action( 'admin_notices', array( $this, 'maybe_show_upgrade_banner' ) );
 		add_action( 'admin_init', array( $this, 'maybe_dismiss_upgrade_banner' ) );
+		add_action( 'admin_init', array( $this, 'maybe_dismiss_smtp_notice' ) );
 
 		add_action( 'admin_post_fc_save_form', array( $this, 'handle_save_form' ) );
 		add_action( 'admin_post_fc_delete_form', array( $this, 'handle_delete_form' ) );
@@ -197,6 +199,114 @@ class FC_Admin {
 	}
 
 	/**
+	 * Deliverability warning: when the site has no SMTP transport configured,
+	 * WordPress falls back to PHP mail(), which most hosts send from an
+	 * unauthenticated address (SPF/DKIM fail) — so form notifications land in
+	 * spam or get their From rewritten. Nudge the admin to set up SMTP.
+	 *
+	 * Only shown when a form actually sends email, and dismissible per user.
+	 */
+	public function maybe_show_smtp_notice() {
+		if ( ! current_user_can( FC_Helpers::capability() ) ) {
+			return;
+		}
+
+		$screen = get_current_screen();
+		if ( ! $screen || false === strpos( (string) $screen->id, 'formcatch' ) ) {
+			return;
+		}
+
+		if ( get_user_meta( get_current_user_id(), 'fc_smtp_notice_dismissed', true ) ) {
+			return;
+		}
+
+		// Nothing to warn about if no form emails, or if SMTP is already set up.
+		if ( ! $this->any_form_sends_email() || self::is_smtp_configured() ) {
+			return;
+		}
+
+		$dismiss_url = wp_nonce_url(
+			add_query_arg( 'fc_dismiss_smtp', '1' ),
+			'fc_dismiss_smtp'
+		);
+
+		printf(
+			'<div class="notice notice-warning is-dismissible"><p><strong>%s</strong> %s</p><p><a href="%s">%s</a> &nbsp;·&nbsp; <a href="%s">%s</a></p></div>',
+			esc_html__( 'FormCatch: email deliverability at risk.', 'formcatch' ),
+			esc_html__( 'No SMTP plugin is active, so notifications are sent with PHP mail(). On most hosts these fail SPF/DKIM checks and land in spam (or have their From address rewritten). Send through an authenticated SMTP service to fix it.', 'formcatch' ),
+			esc_url( 'https://formcatch.dev/docs/guides/troubleshooting/#emails-land-in-spam' ),
+			esc_html__( 'How to set up SMTP', 'formcatch' ),
+			esc_url( $dismiss_url ),
+			esc_html__( 'Dismiss', 'formcatch' )
+		);
+	}
+
+	/**
+	 * Best-effort detection of an active SMTP transport. There is no core flag
+	 * for "SMTP is configured", so we look for the common SMTP plugins by their
+	 * marker class/function. Sites with a custom phpmailer_init hook can signal
+	 * it via the fc_smtp_configured filter.
+	 *
+	 * @return bool
+	 */
+	public static function is_smtp_configured() {
+		$markers = array(
+			'WPMailSMTP\\Core',        // WP Mail SMTP
+			'EasyWPSMTP',              // Easy WP SMTP
+			'PostmanOptions',          // Post SMTP
+			'FluentMail\\App\\Application', // FluentSMTP
+			'Mailgun',                 // Mailgun
+			'WPSES_Plugin',            // WP Offload SES
+		);
+		foreach ( $markers as $marker ) {
+			if ( class_exists( $marker ) ) {
+				return (bool) apply_filters( 'fc_smtp_configured', true );
+			}
+		}
+		if ( function_exists( 'gmail_smtp' ) || defined( 'WPSENDGRID_VERSION' ) ) {
+			return (bool) apply_filters( 'fc_smtp_configured', true );
+		}
+
+		return (bool) apply_filters( 'fc_smtp_configured', false );
+	}
+
+	/**
+	 * Whether at least one active form actually sends email notifications.
+	 * Keeps the SMTP warning off sites that only store submissions.
+	 *
+	 * @return bool
+	 */
+	private function any_form_sends_email() {
+		global $wpdb;
+		$table = FC_DB::forms_table();
+
+		// Cheap: a form sends mail only when notify_email is on in its settings
+		// JSON. A LIKE is enough — false positives just mean the (already
+		// dismissible) notice shows on a site that could send mail anyway.
+		$hit = $wpdb->get_var( "SELECT 1 FROM {$table} WHERE status = 'active' AND settings LIKE '%\"notify_email\":true%' LIMIT 1" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+
+		return (bool) $hit;
+	}
+
+	/**
+	 * Persist dismissal of the SMTP deliverability notice for the current user.
+	 */
+	public function maybe_dismiss_smtp_notice() {
+		if ( ! isset( $_GET['fc_dismiss_smtp'] ) ) {
+			return;
+		}
+		if ( ! current_user_can( FC_Helpers::capability() ) ) {
+			return;
+		}
+		check_admin_referer( 'fc_dismiss_smtp' );
+
+		update_user_meta( get_current_user_id(), 'fc_smtp_notice_dismissed', 1 );
+
+		wp_safe_redirect( remove_query_arg( array( 'fc_dismiss_smtp', '_wpnonce' ) ) );
+		exit;
+	}
+
+	/**
 	 * Free-tier upgrade banner shown on FormCatch admin screens. Dismissible
 	 * per user (persisted in user meta). Never shown on a licensed Pro install.
 	 */
@@ -229,7 +339,7 @@ class FC_Admin {
 			<div class="fc-ub-body">
 				<p class="fc-ub-title">
 					<?php esc_html_e( 'Unlock FormCatch Pro', 'formcatch' ); ?>
-					<span class="fc-ub-price"><?php esc_html_e( '$50 lifetime · unlimited sites', 'formcatch' ); ?></span>
+					<span class="fc-ub-price"><?php esc_html_e( '$49 lifetime · unlimited sites', 'formcatch' ); ?></span>
 				</p>
 				<p class="fc-ub-text">
 					<?php esc_html_e( 'Send submissions to webhooks (Slack, Zapier, and more) and read them over the REST API — plus all future updates. FormCatch stays free on this site; if it is useful to you, consider supporting the developer and getting a license.', 'formcatch' ); ?>

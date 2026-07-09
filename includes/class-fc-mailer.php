@@ -87,7 +87,8 @@ class FC_Mailer {
 		// address should be on a domain whose SPF/DKIM authorizes this site.
 		$from_address = trim( (string) $settings['email_from_address'] );
 		$from_name    = trim( (string) $settings['email_from_name'] );
-		if ( '' !== $from_address && is_email( $from_address ) ) {
+		$from_applied = ( '' !== $from_address && is_email( $from_address ) );
+		if ( $from_applied ) {
 			$headers[] = '' !== $from_name
 				? sprintf( 'From: %s <%s>', $from_name, $from_address )
 				: 'From: ' . $from_address;
@@ -102,21 +103,46 @@ class FC_Mailer {
 
 		$headers = apply_filters( 'fc_email_headers', $headers, $form, $payload );
 
+		// wp_mail() only returns a bool. The real reason for a failure — SMTP
+		// rejection, a PHPMailer exception, an unconfigured transport — arrives
+		// via the wp_mail_failed action as a WP_Error. Capture it so the log
+		// records *why*, not just *that*, the send failed.
+		$mail_error = null;
+		$capture    = static function ( $wp_error ) use ( &$mail_error ) {
+			$mail_error = $wp_error;
+		};
+		add_action( 'wp_mail_failed', $capture );
 		$sent = wp_mail( $to, $subject, $body, $headers );
+		remove_action( 'wp_mail_failed', $capture );
+
+		$context = array(
+			'to'       => $to,
+			'subject'  => $subject,
+			'format'   => $email['format'],
+			'reply_to' => $reply_to,
+			// Records the From this send *requested*. If mail still arrives as
+			// wordpress@<domain>, either this was blank (no custom From set) or a
+			// host/SMTP layer rewrote it — the log disambiguates the two.
+			'from'     => $from_applied
+				? ( '' !== $from_name ? sprintf( '%s <%s>', $from_name, $from_address ) : $from_address )
+				: '(WordPress default)',
+		);
+		if ( ! $sent && $mail_error instanceof WP_Error ) {
+			$context['error'] = $mail_error->get_error_message();
+		}
 
 		FC_Logger::email(
 			$sent ? FC_Logger::STATUS_SUCCESS : FC_Logger::STATUS_ERROR,
 			$sent
 				/* translators: %s: comma-separated recipients */
 				? sprintf( __( 'Email sent to %s', 'formcatch' ), implode( ', ', $to ) )
-				/* translators: %s: comma-separated recipients */
-				: sprintf( __( 'Email failed to %s', 'formcatch' ), implode( ', ', $to ) ),
-			array(
-				'to'       => $to,
-				'subject'  => $subject,
-				'format'   => $email['format'],
-				'reply_to' => $reply_to,
-			),
+				: sprintf(
+					/* translators: 1: comma-separated recipients, 2: failure reason */
+					__( 'Email failed to %1$s: %2$s', 'formcatch' ),
+					implode( ', ', $to ),
+					$mail_error instanceof WP_Error ? $mail_error->get_error_message() : __( 'unknown error', 'formcatch' )
+				),
+			$context,
 			$form->id,
 			$submission_id
 		);
@@ -155,6 +181,18 @@ class FC_Mailer {
 	 */
 	private static function build_tokens( $form, $payload, $submission_id, $is_html ) {
 		$tokens = array();
+
+		// The honeypot is a hidden anti-spam trap, not real form data — never
+		// surface it in {{all_fields}} or as its own {{token}}. The submit
+		// handler already strips it before storing, but do it here too so the
+		// mailer is authoritative for every caller (resend, filters, and any
+		// legacy submission stored before that stripping existed).
+		$honeypot = isset( $form->settings_arr['honeypot_field'] )
+			? (string) $form->settings_arr['honeypot_field']
+			: '';
+		if ( '' !== $honeypot ) {
+			unset( $payload[ $honeypot ] );
+		}
 
 		foreach ( $payload as $key => $value ) {
 			if ( is_array( $value ) ) {

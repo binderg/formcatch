@@ -12,6 +12,7 @@ $current_status  = ! empty( $_GET['status'] ) ? sanitize_key( wp_unslash( $_GET[
 $current_search  = ! empty( $_GET['s'] ) ? sanitize_text_field( wp_unslash( $_GET['s'] ) ) : '';
 ?>
 <div class="wrap fc-wrap">
+	<?php include __DIR__ . '/partials/header-banner.php'; ?>
 	<h1><?php esc_html_e( 'FormCatch — Logs', 'formcatch' ); ?></h1>
 	<p class="description"><?php esc_html_e( 'Every submission received, email sent, and webhook fired is recorded here.', 'formcatch' ); ?></p>
 
