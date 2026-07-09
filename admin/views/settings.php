@@ -78,12 +78,13 @@ $server_limit_bytes   = wp_max_upload_size();
 				</td>
 			</tr>
 			<tr>
-				<th scope="row"><label for="fc-webhook-secret"><?php esc_html_e( 'Webhook signing secret', 'formcatch' ); ?></label></th>
+				<th scope="row"><label for="fc-webhook-secret"><?php esc_html_e( 'Webhook signing secret', 'formcatch' ); ?></label><?php echo FC_Helpers::is_pro() ? '' : wp_kses_post( FC_Helpers::pro_badge() ); ?></th>
 				<td>
 					<input type="text" id="fc-webhook-secret" name="fc_webhook_secret" class="regular-text code" value="<?php echo esc_attr( $webhook_secret ); ?>" autocomplete="off" />
 					<p class="description">
 						<?php esc_html_e( 'Optional. When set, each webhook request includes an X-FormCatch-Signature header: "t=<timestamp>,v1=<hmac>", where the HMAC-SHA256 is computed over "<timestamp>.<raw JSON body>" with this secret. Receivers recompute it to verify authenticity and reject replays. Leave blank to send unsigned.', 'formcatch' ); ?>
 					</p>
+					<?php echo wp_kses_post( FC_Helpers::pro_lock_notice( __( 'Webhooks', 'formcatch' ) ) ); ?>
 				</td>
 			</tr>
 		</table>

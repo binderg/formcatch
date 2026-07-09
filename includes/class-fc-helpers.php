@@ -23,11 +23,11 @@ class FC_Helpers {
 	 * running a licensed (paid or trial) Pro install. When the Freemius SDK
 	 * isn't present the site is treated as free.
 	 *
-	 * The $feature argument is currently informational (all four Pro features
-	 * share one plan) but is accepted so gating can later be split per plan
-	 * without touching call sites.
+	 * The $feature argument is currently informational (both Pro features share
+	 * one plan) but is accepted so gating can later be split per plan without
+	 * touching call sites.
 	 *
-	 * @param string $feature Optional feature slug: captcha|uploads|webhooks|api.
+	 * @param string $feature Optional feature slug: webhooks|api.
 	 * @return bool
 	 */
 	public static function can_use( $feature = '' ) {

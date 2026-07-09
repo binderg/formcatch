@@ -2,8 +2,9 @@
 /**
  * Freemius SDK bootstrap.
  *
- * Registers FormCatch with Freemius so a paid license unlocks the Pro
- * features (CAPTCHA, file uploads, webhooks, and the REST/Forms API). The free
+ * Registers FormCatch with Freemius so a paid license unlocks the two Pro
+ * features: webhooks and the REST/Forms API. Everything else — unlimited forms,
+ * email rules, CAPTCHA, file uploads, spam filtering, logs — is free. The free
  * build and the Pro build ship the same code; gating is done at runtime via
  * FC_Helpers::can_use() / for_fs()->can_use_premium_code().
  *

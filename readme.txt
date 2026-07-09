@@ -11,6 +11,33 @@ write your own HTML/PHP form, point its action at a generated endpoint,
 and FormCatch handles storage, search, spam filtering, and email
 notifications.
 
+== Free vs Pro ==
+
+FormCatch is a complete form backend for free. Everything below is included at
+no cost, on every site, with no submission cap and no timer:
+
+- Unlimited forms and submissions
+- Schema-less capture — no shortcodes, no form builder
+- Submission inbox with search, filters, statuses, and CSV export
+- Composable email rules, {{placeholders}}, and autoresponders
+- File uploads with protected storage and signed, expiring links
+- CAPTCHA (Turnstile, hCaptcha, reCAPTCHA v2/v3)
+- Spam protection — honeypot, disposable-email blocking, domain allowlist
+- Rate limiting, payload caps, CORS control
+- Event logs with automatic pruning
+- JSON form import/export
+- Retention windows for submissions and logs
+- Developer hooks and filters
+
+Two power-user features require a Pro license ($49 once, lifetime, unlimited
+sites — a license also funds continued development):
+
+- Webhooks — POST submissions to Slack, Zapier, or your own service.
+- REST / Forms API — read submissions and manage forms programmatically.
+
+Pro is purely additive. Nothing is removed from the free plugin to make room
+for it, and the public submit endpoint is never gated.
+
 == Quick start ==
 
 1. Activate the plugin.
@@ -46,7 +73,7 @@ Organized into tabs on the form edit screen:
   to turn it into an autoresponder back to the submitter.
 - Spam — honeypot field name, CAPTCHA (if configured globally), and whether
   to notify on spam-flagged submissions.
-- Advanced — webhook URL(s).
+- Advanced — webhook URL(s) (Pro).
 
 == Email placeholders ==
 
@@ -60,7 +87,7 @@ Usable in an email rule's recipients, subject, and body:
 
 Unknown placeholders are left visible (not blanked) so typos are obvious.
 
-== Webhooks ==
+== Webhooks (Pro) ==
 
 Per form, POST each non-spam submission to one or more URLs (Slack, Zapier,
 etc.) as JSON. Optionally sign requests with an HMAC secret (Settings) — the
@@ -87,9 +114,10 @@ after a configurable retention window (default 90 days).
 For cross-domain fetch()/AJAX submissions, add allowed origins in Settings
 (one per line, or * for any). Same-origin submissions always work.
 
-== REST API ==
+== REST API (Pro) ==
 
-Read stored submissions programmatically.
+Read stored submissions programmatically. Free installs receive HTTP 402 on
+these endpoints; the public submit endpoint (/submit/{token}) is always free.
 
 Endpoints:
 
@@ -133,8 +161,10 @@ Two ways to authenticate:
      curl -u "admin:xxxx xxxx xxxx xxxx" \
        "https://yoursite.com/wp-json/formcatch/v1/submissions?form_id=3"
 
-The API is read-only. Creating submissions is done through the public submit
-endpoint (/submit/{token}); there is no write API for editing stored rows.
+The submissions API is read-only. Creating submissions is done through the
+public submit endpoint (/submit/{token}); there is no write API for editing
+stored rows. Forms, by contrast, are fully writable via the Forms API
+(/forms, /forms/{id}, /forms/schema, /forms/import).
 
 == Developer hooks ==
 

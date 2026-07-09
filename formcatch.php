@@ -48,6 +48,7 @@ require_once FC_PLUGIN_DIR . 'includes/class-fc-captcha.php';
 require_once FC_PLUGIN_DIR . 'includes/class-fc-mailer.php';
 require_once FC_PLUGIN_DIR . 'includes/class-fc-webhook.php';
 require_once FC_PLUGIN_DIR . 'includes/class-fc-rest-controller.php';
+require_once FC_PLUGIN_DIR . 'includes/fc-uninstall.php';
 
 if ( is_admin() ) {
 	require_once FC_PLUGIN_DIR . 'includes/class-fc-admin.php';
