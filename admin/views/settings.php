@@ -20,6 +20,15 @@ $upload_max_mb        = get_option( 'fc_upload_max_mb', 0 );
 $upload_allowed_ext   = get_option( 'fc_upload_allowed_ext', 'jpg,jpeg,png,gif,webp,pdf,doc,docx,xls,xlsx,ppt,pptx,txt,csv,zip' );
 $upload_max_files     = get_option( 'fc_upload_max_files', 10 );
 $server_limit_bytes   = wp_max_upload_size();
+
+$smtp_ok = FC_Admin::is_smtp_configured();
+
+// Result of the last "Send test email", stashed by the handler. Read-once:
+// deleting it here stops the outcome reappearing on every later page load.
+$test_result = get_transient( 'fc_test_email_' . get_current_user_id() );
+if ( $test_result ) {
+	delete_transient( 'fc_test_email_' . get_current_user_id() );
+}
 ?>
 <div class="wrap fc-wrap">
 	<?php include __DIR__ . '/partials/header-banner.php'; ?>
@@ -198,6 +207,79 @@ $server_limit_bytes   = wp_max_upload_size();
 							<span style="color:#a12622;margin-left:8px;"><?php esc_html_e( 'Refresh failed — kept the existing list. See Logs.', 'formcatch' ); ?></span>
 						<?php endif; ?>
 					</p>
+				</td>
+			</tr>
+		</table>
+
+		<h2 id="fc-deliverability"><?php esc_html_e( 'Email deliverability', 'formcatch' ); ?></h2>
+		<table class="form-table" role="presentation">
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Sending transport', 'formcatch' ); ?></th>
+				<td>
+					<?php if ( $smtp_ok ) : ?>
+						<p style="margin-top:0;">
+							<span style="color:#1a7a3d;font-weight:600;"><?php esc_html_e( 'Authenticated SMTP detected.', 'formcatch' ); ?></span>
+							<?php esc_html_e( 'Notifications are sent through your SMTP plugin.', 'formcatch' ); ?>
+						</p>
+					<?php else : ?>
+						<p style="margin-top:0;">
+							<span style="color:#a12622;font-weight:600;"><?php esc_html_e( 'No SMTP plugin detected.', 'formcatch' ); ?></span>
+							<?php esc_html_e( 'WordPress will fall back to PHP mail(). Many hosts disable it outright, and mail that does go out usually fails SPF/DKIM and lands in spam.', 'formcatch' ); ?>
+						</p>
+						<p class="description">
+							<?php esc_html_e( 'Install any SMTP plugin (FluentSMTP and WP Mail SMTP are both free) and connect it to a transactional provider. Sending from an address on your own domain also requires SPF and DKIM DNS records — your provider supplies them.', 'formcatch' ); ?>
+						</p>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<tr>
+				<th scope="row"><?php esc_html_e( 'Test email', 'formcatch' ); ?></th>
+				<td>
+					<?php
+					$test_url  = wp_nonce_url( admin_url( 'admin-post.php?action=fc_test_email' ), 'fc_test_email' );
+					$test_addr = wp_get_current_user()->user_email;
+					?>
+					<a href="<?php echo esc_url( $test_url ); ?>" class="button"><?php esc_html_e( 'Send test email', 'formcatch' ); ?></a>
+					<p class="description">
+						<?php
+						printf(
+							/* translators: %s: current user's email address */
+							esc_html__( 'Sends to your account address (%s) using the exact same wp_mail() path as form notifications.', 'formcatch' ),
+							esc_html( $test_addr )
+						);
+						?>
+					</p>
+
+					<?php if ( is_array( $test_result ) && ! empty( $test_result['sent'] ) ) : ?>
+						<div class="notice notice-success inline" style="margin:12px 0 0;">
+							<p>
+								<?php
+								printf(
+									/* translators: %s: recipient address */
+									esc_html__( 'WordPress accepted the message for %s. Check your inbox — and your spam folder, since delivery is not guaranteed just because sending succeeded.', 'formcatch' ),
+									esc_html( $test_result['to'] )
+								);
+								?>
+							</p>
+						</div>
+					<?php elseif ( is_array( $test_result ) ) : ?>
+						<div class="notice notice-error inline" style="margin:12px 0 0;">
+							<p>
+								<?php
+								printf(
+									/* translators: %s: recipient address */
+									esc_html__( 'Sending failed for %s. Form notifications will fail the same way.', 'formcatch' ),
+									esc_html( $test_result['to'] )
+								);
+								?>
+							</p>
+							<?php if ( ! empty( $test_result['reason'] ) ) : ?>
+								<p><strong><?php esc_html_e( 'Reason:', 'formcatch' ); ?></strong> <code><?php echo esc_html( $test_result['reason'] ); ?></code></p>
+							<?php else : ?>
+								<p><?php esc_html_e( 'No reason was reported. This usually means the host silently disabled mail() — configure an SMTP plugin.', 'formcatch' ); ?></p>
+							<?php endif; ?>
+						</div>
+					<?php endif; ?>
 				</td>
 			</tr>
 		</table>

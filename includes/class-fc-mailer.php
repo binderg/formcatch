@@ -46,8 +46,9 @@ class FC_Mailer {
 	 * @return bool
 	 */
 	private static function send_one( $email, $form, $payload, $submission_id ) {
-		$is_html = ( 'html' === $email['format'] );
-		$tokens  = self::build_tokens( $form, $payload, $submission_id, $is_html );
+		$settings = $form->settings_arr;
+		$is_html  = ( 'html' === $email['format'] );
+		$tokens   = self::build_tokens( $form, $payload, $submission_id, $is_html );
 
 		// "To" supports {{tokens}} too — e.g. {{email}} sends straight back to
 		// the submitter, turning a rule into an autoresponder. Unescaped

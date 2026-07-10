@@ -33,6 +33,7 @@ class FC_Admin {
 		add_action( 'admin_post_fc_export_csv', array( $this, 'handle_export_csv' ) );
 		add_action( 'admin_post_fc_save_settings', array( $this, 'handle_save_settings' ) );
 		add_action( 'admin_post_fc_refresh_disposable', array( $this, 'handle_refresh_disposable' ) );
+		add_action( 'admin_post_fc_test_email', array( $this, 'handle_test_email' ) );
 		// File downloads: available to logged-in managers, and to anyone with a
 		// valid signed URL (so emailed links work). Both hooks needed because
 		// nopriv covers logged-out signed-link clicks.
@@ -787,6 +788,73 @@ class FC_Admin {
 	/* -----------------------------------------------------------------
 	 * Settings
 	 * --------------------------------------------------------------- */
+
+	/**
+	 * Send a test email to the current user and report exactly what happened.
+	 *
+	 * wp_mail() returns only a bool; the reason for a failure arrives separately
+	 * as a WP_Error on wp_mail_failed. Capture it so the admin sees the real
+	 * transport error ("Could not connect to SMTP host", "mail() has been
+	 * disabled") instead of a bare "sending failed". The outcome is stashed in a
+	 * short-lived transient because a WP_Error message is far too long, and too
+	 * untrusted, to round-trip through a query arg.
+	 */
+	public function handle_test_email() {
+		if ( ! current_user_can( FC_Helpers::capability() ) ) {
+			wp_die( esc_html__( 'You do not have permission to do that.', 'formcatch' ) );
+		}
+		check_admin_referer( 'fc_test_email' );
+
+		$user = wp_get_current_user();
+		$to   = $user->user_email;
+
+		$mail_error = null;
+		$capture    = static function ( $wp_error ) use ( &$mail_error ) {
+			$mail_error = $wp_error;
+		};
+		add_action( 'wp_mail_failed', $capture );
+		$sent = wp_mail(
+			$to,
+			__( 'FormCatch test email', 'formcatch' ),
+			__( "This is a test email from FormCatch.\n\nIf it reached your inbox, your site can send form notifications. If it landed in spam, configure an authenticated SMTP transport.", 'formcatch' )
+		);
+		remove_action( 'wp_mail_failed', $capture );
+
+		$reason = ( ! $sent && $mail_error instanceof WP_Error )
+			? $mail_error->get_error_message()
+			: '';
+
+		set_transient(
+			'fc_test_email_' . get_current_user_id(),
+			array(
+				'sent'   => (bool) $sent,
+				'to'     => $to,
+				'reason' => $reason,
+			),
+			MINUTE_IN_SECONDS * 5
+		);
+
+		FC_Logger::email(
+			$sent ? FC_Logger::STATUS_SUCCESS : FC_Logger::STATUS_ERROR,
+			$sent
+				/* translators: %s: recipient address */
+				? sprintf( __( 'Test email sent to %s', 'formcatch' ), $to )
+				: sprintf(
+					/* translators: 1: recipient address, 2: failure reason */
+					__( 'Test email failed to %1$s: %2$s', 'formcatch' ),
+					$to,
+					'' !== $reason ? $reason : __( 'unknown error', 'formcatch' )
+				),
+			array(
+				'to'              => $to,
+				'smtp_configured' => self::is_smtp_configured(),
+				'error'           => $reason,
+			)
+		);
+
+		wp_safe_redirect( admin_url( 'admin.php?page=formcatch-settings&test_email=1#fc-deliverability' ) );
+		exit;
+	}
 
 	/**
 	 * Manually re-fetch the disposable-email blocklist from Settings.
