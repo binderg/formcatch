@@ -78,8 +78,22 @@ class FC_Logs_List_Table extends WP_List_Table {
 
 		$where_sql = implode( ' AND ', $where );
 
-		$orderby = ! empty( $_GET['orderby'] ) ? sanitize_sql_orderby( wp_unslash( $_GET['orderby'] ) ) : 'created_at';
-		$order   = ( ! empty( $_GET['order'] ) && 'asc' === strtolower( $_GET['order'] ) ) ? 'ASC' : 'DESC';
+		// Allowlisted so the column can never be attacker-controlled, and so the
+		// "l." table prefix below always lands on a bare column name.
+		$sortable = array( 'created_at' );
+		$orderby  = 'created_at';
+		if ( ! empty( $_GET['orderby'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$requested = sanitize_key( wp_unslash( $_GET['orderby'] ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			if ( in_array( $requested, $sortable, true ) ) {
+				$orderby = $requested;
+			}
+		}
+
+		$order = 'DESC';
+		if ( ! empty( $_GET['order'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$requested_order = strtolower( sanitize_text_field( wp_unslash( $_GET['order'] ) ) ); // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			$order           = ( 'asc' === $requested_order ) ? 'ASC' : 'DESC';
+		}
 
 		// The submissions join lets us tell "no submission attached" apart from
 		// "submission was deleted", so we never render a link to a dead row.
@@ -99,7 +113,9 @@ class FC_Logs_List_Table extends WP_List_Table {
 		$select_sql   = "SELECT l.*, f.name AS form_name, s.id AS submission_exists {$base_query} ORDER BY l.{$orderby} {$order} LIMIT %d OFFSET %d";
 		$query_params = array_merge( $params, array( $per_page, $offset ) );
 
-		$this->items = $wpdb->get_results( $wpdb->prepare( $select_sql, $query_params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+		// $select_sql interpolates only FC_DB table names and an allowlisted
+		// $orderby/$order; every value is bound through a placeholder.
+		$this->items = $wpdb->get_results( $wpdb->prepare( $select_sql, $query_params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		$this->set_pagination_args(
 			array(

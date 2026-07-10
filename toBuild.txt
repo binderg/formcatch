@@ -1,0 +1,2 @@
+cd C:\Users\justf\Downloads\formcatch
+pwsh -NoProfile -File bin\build.ps1

@@ -725,9 +725,11 @@ class FC_Admin {
 
 		$where_sql = implode( ' AND ', $where );
 		$sql       = "SELECT * FROM {$table} WHERE {$where_sql} ORDER BY created_at DESC";
+		// $table comes from FC_DB (built off $wpdb->prefix) and $where_sql is
+		// assembled from literal fragments; only values are ever placeholders.
 		$rows      = empty( $params )
 			? $wpdb->get_results( $sql ) // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-			: $wpdb->get_results( $wpdb->prepare( $sql, $params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			: $wpdb->get_results( $wpdb->prepare( $sql, $params ) ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared, WordPress.DB.PreparedSQL.InterpolatedNotPrepared
 
 		// Union of all field keys across the result set = CSV columns. Keeps
 		// the export sensible even though submissions are schema-less.
@@ -749,7 +751,9 @@ class FC_Admin {
 		header( 'Content-Type: text/csv; charset=utf-8' );
 		header( 'Content-Disposition: attachment; filename="' . $filename . '"' );
 
-		$out = fopen( 'php://output', 'w' );
+		// php://output is the HTTP response stream, not a file on disk, so the
+		// WP_Filesystem API doesn't apply — it has no streaming equivalent.
+		$out = fopen( 'php://output', 'w' ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fopen
 
 		// Meta columns first, then one column per submitted field, then a
 		// trailing column of signed download links for any attachments.
@@ -776,7 +780,7 @@ class FC_Admin {
 			fputcsv( $out, $line );
 		}
 
-		fclose( $out );
+		fclose( $out ); // phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose
 		exit;
 	}
 
@@ -880,7 +884,8 @@ class FC_Admin {
 		}
 
 
-		update_option( 'fc_cors_origins', $this->sanitize_cors_origins( isset( $_POST['fc_cors_origins'] ) ? wp_unslash( $_POST['fc_cors_origins'] ) : '' ) );
+		$raw_cors = isset( $_POST['fc_cors_origins'] ) ? sanitize_textarea_field( wp_unslash( $_POST['fc_cors_origins'] ) ) : '';
+		update_option( 'fc_cors_origins', $this->sanitize_cors_origins( $raw_cors ) );
 
 		update_option( 'fc_webhook_secret', isset( $_POST['fc_webhook_secret'] ) ? sanitize_text_field( wp_unslash( $_POST['fc_webhook_secret'] ) ) : '' );
 

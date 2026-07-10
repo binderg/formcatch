@@ -105,14 +105,6 @@ function fc_prune_submissions() {
 add_action( 'fc_daily_prune_logs', 'fc_prune_submissions' );
 
 /**
- * Load translations.
- */
-function fc_load_textdomain() {
-	load_plugin_textdomain( 'formcatch', false, dirname( FC_PLUGIN_BASENAME ) . '/languages' );
-}
-add_action( 'plugins_loaded', 'fc_load_textdomain' );
-
-/**
  * Check DB version on every load in case of upgrades (covers updates that
  * happen outside the activation hook, e.g. auto-updates).
  */

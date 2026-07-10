@@ -1,4 +1,4 @@
-=== FormCatch — Self-Hosted Form Backend ===
+=== FormCatch ===
 Contributors: GStudios
 Tags: forms, contact form, form backend, spam, webhooks
 Requires at least: 5.8

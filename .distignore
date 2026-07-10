@@ -17,7 +17,10 @@
 .claude
 
 assets
+bin
+build
 TODO.md
+toBuild.txt
 
 node_modules
 tests
